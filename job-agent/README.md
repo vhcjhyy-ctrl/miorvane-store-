@@ -8,6 +8,7 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - CV file picker (selection only; no upload or parsing yet)
 - Sample listings with explainable match scoring, matched skills, missing skills, and role/experience reasons
 - Scoring tests, including edge cases for duplicate and empty skill/role input
+- GitHub Actions checks ESLint, unit tests, and the production build on changes
 - GitHub Actions CI for lint, unit tests, and production build
 - Initial Supabase SQL schema and RLS policies
 
