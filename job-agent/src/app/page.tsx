@@ -18,6 +18,52 @@ export default function HomePage() {
   const [minimumScore, setMinimumScore] = useState(60);
   const [notice, setNotice] = useState("");
 
+  function saveProfileSettings() {
+    try {
+      const settings = { schemaVersion: 1, skillsText, rolesText, level, remoteOnly, minimumScore };
+      window.localStorage.setItem("job-agent.profile.v1", JSON.stringify(settings));
+      setNotice("Profile preferences saved in this browser. Your CV file was not uploaded or saved.");
+    } catch {
+      setNotice("The browser could not save these settings. Check local storage availability.");
+    }
+  }
+
+  function loadProfileSettings() {
+    try {
+      const raw = window.localStorage.getItem("job-agent.profile.v1");
+      if (!raw) {
+        setNotice("No saved profile was found in this browser yet.");
+        return;
+      }
+      const value: unknown = JSON.parse(raw);
+      if (!value || typeof value !== "object") throw new Error("Invalid settings");
+      const settings = value as Record<string, unknown>;
+      const validLevel = settings.level === "entry" || settings.level === "mid" || settings.level === "senior";
+      const validScore = typeof settings.minimumScore === "number"
+        && settings.minimumScore >= 30
+        && settings.minimumScore <= 95
+        && settings.minimumScore % 5 === 0;
+      if (
+        settings.schemaVersion !== 1
+        || typeof settings.skillsText !== "string"
+        || typeof settings.rolesText !== "string"
+        || !validLevel
+        || typeof settings.remoteOnly !== "boolean"
+        || !validScore
+      ) {
+        throw new Error("Invalid settings");
+      }
+      setSkillsText(settings.skillsText);
+      setRolesText(settings.rolesText);
+      setLevel(settings.level as CandidateProfile["level"]);
+      setRemoteOnly(settings.remoteOnly);
+      setMinimumScore(settings.minimumScore as number);
+      setNotice("Saved profile preferences loaded from this browser. Your CV file is not stored.");
+    } catch {
+      setNotice("Saved settings could not be read because they are invalid or browser storage is unavailable.");
+    }
+  }
+
   const candidate = useMemo<CandidateProfile>(() => ({
     skills: skillsText.split(",").map(s => s.trim()).filter(Boolean),
     targetRoles: rolesText.split(",").map(s => s.trim()).filter(Boolean),
@@ -57,7 +103,7 @@ export default function HomePage() {
         <label className="field-label" htmlFor="level">Experience level</label><select id="level" value={level} onChange={e => setLevel(e.target.value as CandidateProfile["level"])}><option value="entry">Entry level</option><option value="mid">Mid level</option><option value="senior">Senior</option></select>
         <label className="toggle-row"><span><strong>Remote positions only</strong><small>Exclude non-remote roles</small></span><input type="checkbox" checked={remoteOnly} onChange={e => setRemoteOnly(e.target.checked)}/></label>
         <div className="range-heading"><label htmlFor="score">Minimum match score</label><strong>{minimumScore}%</strong></div><input id="score" className="range" type="range" min={30} max={95} step={5} value={minimumScore} onChange={e => setMinimumScore(Number(e.target.value))}/>
-        <button className="primary-button" onClick={() => setNotice("Settings are in browser memory only. Database persistence comes in the next phase.")}>Save profile settings</button>
+        <button className="primary-button" onClick={saveProfileSettings}>Save profile settings</button><button className="secondary-button" onClick={loadProfileSettings}>Load saved profile</button>
       </aside>
       <section className="results"><div className="section-heading results-heading"><div><p className="eyebrow">02 / MATCHING</p><h2>Job opportunities</h2></div><span className="count-pill">{matches.length} matches</span></div><p className="subheading">Sample listings scored against your current profile.</p>
         {matches.length === 0 && <div className="empty-state">No sample jobs meet this score and preference combination. Lower the threshold or change your profile.</div>}

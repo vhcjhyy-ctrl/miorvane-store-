@@ -4,3 +4,5 @@
 @media(max-width:850px){.shell{padding:0 18px}.layout{grid-template-columns:1fr}.hero{padding-top:30px}.hero-stat{min-width:95px;padding:13px}.hero h1{font-size:38px}}@media(max-width:480px){.phase-pill{font-size:8px;padding:7px}.hero{align-items:start}.hero-stat{min-width:77px}.stat-number{font-size:27px}.hero h1{font-size:33px}.hero-copy{font-size:12px}.job-card{padding:14px}.job-title-group h3{font-size:12px}footer{font-size:8px}}
 
 .match-details{margin-top:14px;border-top:1px solid #edf0f4;padding-top:11px}.match-details summary{font-size:11px;font-weight:700;color:var(--blue);cursor:pointer;list-style-position:inside}.match-reasons{padding:5px 0 0 17px}.match-reasons p{font-size:11px;line-height:1.55;color:var(--muted);margin:7px 0}.match-reasons strong{color:#39475b}
+
+.secondary-button{border:1px solid #dbe4f2;background:#fff;color:#35445b;border-radius:9px;padding:11px 12px;font-size:12px;font-weight:700;cursor:pointer;margin-top:-3px}.secondary-button:hover{background:#f7faff;border-color:#b7c9e5}

@@ -4,7 +4,7 @@ A starter workspace for a personal AI job application agent. This folder is inte
 
 ## Current phase
 - Next.js + TypeScript dashboard
-- Candidate preferences form
+- Candidate preferences form with explicit browser-local save/load (no cloud upload)
 - CV file picker (selection only; no upload or parsing yet)
 - Sample listings with explainable match scoring, matched skills, missing skills, and role/experience reasons
 - Scoring tests, including edge cases for duplicate and empty skill/role input
@@ -12,7 +12,7 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Initial Supabase SQL schema and RLS policies
 
 ## Not implemented yet
-Candidate preferences are currently held only in page state and are not persisted. No live job discovery, CV parsing, Supabase connection, Gmail OAuth, email sending, or scheduled automation is active. The job listings are demo data. Do not treat the UI as a deployed service.
+Candidate preferences can be explicitly saved to and loaded from browser local storage; CV files are not stored. No live job discovery, CV parsing, Supabase connection, Gmail OAuth, email sending, or scheduled automation is active. The job listings are demo data. Do not treat the UI as a deployed service.
 
 ## Run locally
 Requirements: Node.js 20+.
