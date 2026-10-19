@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { scoreJob, type CandidateProfile, type Job } from "@/lib/scoring";
+import { explainJobMatch, type CandidateProfile, type Job } from "@/lib/scoring";
 
 const sampleJobs: Job[] = [
   { id: "demo-1", title: "Junior Python Developer", company: "Northstar Systems", location: "Remote — Worldwide", remote: true, skills: ["Python", "SQL", "Git"], level: "entry", description: "Support backend services, write Python code, and work with relational databases.", url: "https://example.com/jobs/demo-1" },
@@ -26,9 +26,9 @@ export default function HomePage() {
 
   const matches = useMemo(() => sampleJobs
     .filter(job => !candidate.remoteOnly || job.remote)
-    .map(job => ({ job, score: scoreJob(candidate, job) }))
-    .filter(item => item.score >= minimumScore)
-    .sort((a, b) => b.score - a.score), [candidate, minimumScore]);
+    .map(job => ({ job, explanation: explainJobMatch(candidate, job) }))
+    .filter(item => item.explanation.score >= minimumScore)
+    .sort((a, b) => b.explanation.score - a.explanation.score), [candidate, minimumScore]);
 
   function selectCv(file?: File) {
     if (!file) return;
@@ -61,7 +61,8 @@ export default function HomePage() {
       </aside>
       <section className="results"><div className="section-heading results-heading"><div><p className="eyebrow">02 / MATCHING</p><h2>Job opportunities</h2></div><span className="count-pill">{matches.length} matches</span></div><p className="subheading">Sample listings scored against your current profile.</p>
         {matches.length === 0 && <div className="empty-state">No sample jobs meet this score and preference combination. Lower the threshold or change your profile.</div>}
-        {matches.map(({job, score}) => <article className="job-card" key={job.id}><div className="job-card-top"><div className="company-avatar">{job.company.slice(0,1)}</div><div className="job-title-group"><h3>{job.title}</h3><p>{job.company} · {job.location}</p></div><div className="score"><strong>{score}%</strong><small>match</small></div></div><p className="job-description">{job.description}</p><div className="chips">{job.skills.map(skill => <span className="chip" key={skill}>{skill}</span>)}</div><div className="job-card-bottom"><span className={job.remote ? "remote-tag" : "onsite-tag"}>{job.remote ? "REMOTE" : "ON-SITE / HYBRID"}</span><a href={job.url} target="_blank" rel="noreferrer">Example listing ↗</a></div></article>)}
+        {matches.map(({job, explanation}) => <article className="job-card" key={job.id}><div className="job-card-top"><div className="company-avatar">{job.company.slice(0,1)}</div><div className="job-title-group"><h3>{job.title}</h3><p>{job.company} · {job.location}</p></div><div className="score"><strong>{explanation.score}%</strong><small>match</small></div></div><p className="job-description">{job.description}</p><div className="chips">{job.skills.map(skill => <span className="chip" key={skill}>{skill}</span>)}</div>
+          <details className="match-details"><summary>Why this match?</summary><div className="match-reasons"><p><strong>Role:</strong> {explanation.roleMatch ? "Your target role aligns with this title." : "This title does not directly match your target roles."}</p><p><strong>Experience:</strong> {explanation.levelMatch ? "Exact experience-level match." : "Experience level differs; this receives partial credit."}</p><p><strong>Matched skills:</strong> {explanation.matchedSkills.length ? explanation.matchedSkills.join(", ") : "No listed skills matched yet."}</p>{explanation.missingSkills.length > 0 && <p><strong>Skills not listed in your profile:</strong> {explanation.missingSkills.join(", ")}</p>}</div></details><div className="job-card-bottom"><span className={job.remote ? "remote-tag" : "onsite-tag"}>{job.remote ? "REMOTE" : "ON-SITE / HYBRID"}</span><a href={job.url} target="_blank" rel="noreferrer">Example listing ↗</a></div></article>)}
         <div className="next-step"><span className="next-step-icon">↗</span><div><strong>Next integration: live job sources</strong><p>Replace demo data with authorized APIs and feeds, then persist normalized listings in Supabase.</p></div></div>
       </section>
     </div>
