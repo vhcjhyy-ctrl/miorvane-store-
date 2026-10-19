@@ -1,0 +1,52 @@
+name: Job Agent CI
+
+on:
+  push:
+    branches:
+      - main
+      - "feature/ai-job-agent-phase1"
+    paths:
+      - "job-agent/**"
+      - ".github/workflows/job-agent-ci.yml"
+  pull_request:
+    paths:
+      - "job-agent/**"
+      - ".github/workflows/job-agent-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: job-agent-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Lint, test, and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: job-agent
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: job-agent/package.json
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Build production application
+        run: npm run build
