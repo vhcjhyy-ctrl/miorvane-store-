@@ -38,6 +38,9 @@ export default function HomePage() {
   const [showApplications, setShowApplications] = useState(false);
   const [draftForJob, setDraftForJob] = useState<Job | null>(null);
   const [draftText, setDraftText] = useState("");
+  const [aiConsent, setAiConsent] = useState(false);
+  const [isAiDrafting, setIsAiDrafting] = useState(false);
+  const [aiDraftError, setAiDraftError] = useState("");
 
   useEffect(() => {
     try {
@@ -275,6 +278,8 @@ export default function HomePage() {
 
   function createCoverLetterDraft(job: Job) {
     setDraftForJob(job);
+    setAiConsent(false);
+    setAiDraftError("");
     setDraftText(buildCoverLetterDraft({
       candidateName,
       targetRoles: candidate.targetRoles,
@@ -284,6 +289,46 @@ export default function HomePage() {
       company: job.company
     }));
     setNotice("A cover letter template was created locally. Review every line before using it; nothing was sent.");
+  }
+
+  async function generateAiCoverLetterDraft() {
+    if (!draftForJob || !aiConsent || isAiDrafting) return;
+    setIsAiDrafting(true);
+    setAiDraftError("");
+    try {
+      const response = await fetch("/api/ai/cover-letter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          consentConfirmed: aiConsent,
+          candidateName,
+          targetRoles: candidate.targetRoles.slice(0, 6),
+          candidateSkills: candidate.skills.slice(0, 20),
+          jobSkills: draftForJob.skills.slice(0, 30),
+          jobTitle: draftForJob.title,
+          company: draftForJob.company,
+          jobDescription: draftForJob.description,
+          language: "en"
+        })
+      });
+      const payload: unknown = await response.json();
+      if (!response.ok) {
+        const message = payload && typeof payload === "object" && "error" in payload && typeof payload.error === "string"
+          ? payload.error : "AI draft generation is unavailable.";
+        throw new Error(message);
+      }
+      if (!payload || typeof payload !== "object" || !("draft" in payload) || typeof payload.draft !== "string" || !payload.draft.trim()) {
+        throw new Error("The AI provider returned an unexpected response.");
+      }
+      setDraftText(payload.draft);
+      setNotice("AI draft received. Review it carefully; no application or email was sent.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "AI draft generation failed.";
+      setAiDraftError(message);
+      setNotice("AI draft was not generated. The editable local template remains available.");
+    } finally {
+      setIsAiDrafting(false);
+    }
   }
 
   async function copyCoverLetterDraft() {
@@ -442,14 +487,25 @@ export default function HomePage() {
         {draftForJob && <section className="panel draft-panel" aria-label="Cover letter draft editor">
           <div className="section-heading">
             <div><p className="eyebrow">03 / APPLICATION PREPARATION</p><h2>Cover letter draft</h2></div>
-            <button className="secondary-button draft-close" type="button" onClick={() => { setDraftForJob(null); setDraftText(""); }}>Close</button>
+            <button className="secondary-button draft-close" type="button" onClick={() => { setDraftForJob(null); setDraftText(""); setAiConsent(false); setAiDraftError(""); }}>Close</button>
           </div>
           <p className="draft-help">Template for {draftForJob.title} at {draftForJob.company}. It uses only your entered name, target roles, and skills. It does not claim experience, credentials, or achievements you have not supplied.</p>
           <label className="field-label" htmlFor="cover-letter-text">Editable draft</label>
           <textarea id="cover-letter-text" rows={13} value={draftText} onChange={e => setDraftText(e.target.value)} />
+          <div className="ai-consent-box">
+            <label className="ai-consent-row">
+              <input type="checkbox" checked={aiConsent} onChange={event => setAiConsent(event.target.checked)} disabled={isAiDrafting}/>
+              <span>I agree to send my entered name, target roles, skills, and this job's title, company, and description to OpenAI to generate this draft. My CV file and extracted CV text will not be sent.</span>
+            </label>
+            <button className="primary-button ai-generate-button" type="button" disabled={!aiConsent || isAiDrafting} onClick={() => { void generateAiCoverLetterDraft(); }}>
+              {isAiDrafting ? "Generating AI draft…" : "Generate AI version"}
+            </button>
+            <p className="source-disclaimer">Optional integration; disabled until the app owner configures a server-side key and enables it. This sends only the listed draft fields, not the CV file/text.</p>
+            {aiDraftError && <p className="inline-error" role="alert">{aiDraftError}</p>}
+          </div>
           <div className="draft-actions">
             <button className="primary-button" type="button" onClick={copyCoverLetterDraft}>Copy draft</button>
-            <button className="secondary-button" type="button" onClick={() => setDraftText(buildCoverLetterDraft({ candidateName, targetRoles: candidate.targetRoles, skills: candidate.skills, jobSkills: draftForJob.skills, jobTitle: draftForJob.title, company: draftForJob.company }))}>Regenerate from profile</button>
+            <button className="secondary-button" type="button" onClick={() => setDraftText(buildCoverLetterDraft({ candidateName, targetRoles: candidate.targetRoles, skills: candidate.skills, jobSkills: draftForJob.skills, jobTitle: draftForJob.title, company: draftForJob.company }))}>Regenerate local template</button>
           </div>
           <p className="source-disclaimer">Review and personalize the text before using it. Copying is the only export action; this app cannot send applications or emails.</p>
         </section>}
