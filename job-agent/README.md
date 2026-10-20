@@ -1,4 +1,4 @@
-# Job Agent — Phase 1
+# Job Agent — Phase 2
 
 A starter workspace for a personal AI job application agent. This folder is intentionally isolated from the existing store project.
 
@@ -13,7 +13,7 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Initial Supabase SQL schema and RLS policies
 
 ## Not implemented yet
-Candidate preferences can be explicitly saved to and loaded from browser local storage; CV files are not stored. Live search is read-only and uses Remotive's public API; upstream data is cached for six hours and every listing links back to Remotive. This is not a broad all-market search. CV parsing, Supabase connection, Gmail OAuth, email sending, and scheduled automation are not active. Demo data remains available.
+Candidate preferences can be explicitly saved to and loaded from browser local storage; CV files are not stored. Live search is read-only and uses Remotive's public API. Upstream data is cached for six hours, listings link back to Remotive, and results may be delayed by 24 hours. The source recommends no more than four upstream requests per day. This is not a broad all-market search. CV parsing, Supabase connection, Gmail OAuth, email sending, and scheduled automation are not active. Demo data remains available.
 
 ## Run locally
 Requirements: Node.js 20+.
