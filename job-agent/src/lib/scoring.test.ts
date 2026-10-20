@@ -56,4 +56,11 @@ describe("job matching", () => {
     expect(explanation.matchedSkills).toEqual([]);
     expect(explanation.missingSkills).toEqual([]);
   });
+
+  it("does not invent an experience-level match when the listing omits it", () => {
+    const { level: _level, ...jobWithoutLevel } = job;
+    const explanation = explainJobMatch(candidate, jobWithoutLevel);
+    expect(explanation.levelMatch).toBeNull();
+    expect(explanation.score).toBe(95);
+  });
 });

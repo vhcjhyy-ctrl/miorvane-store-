@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { explainJobMatch, type CandidateProfile, type Job } from "@/lib/scoring";
 
 const sampleJobs: Job[] = [
@@ -17,6 +17,12 @@ export default function HomePage() {
   const [remoteOnly, setRemoteOnly] = useState(true);
   const [minimumScore, setMinimumScore] = useState(60);
   const [notice, setNotice] = useState("");
+  const [liveQuery, setLiveQuery] = useState("Python developer");
+  const [liveJobs, setLiveJobs] = useState<Job[]>([]);
+  const [showLiveJobs, setShowLiveJobs] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [liveError, setLiveError] = useState("");
+  const [liveFetchedAt, setLiveFetchedAt] = useState("");
 
   function saveProfileSettings() {
     try {
@@ -67,49 +73,170 @@ export default function HomePage() {
   const candidate = useMemo<CandidateProfile>(() => ({
     skills: skillsText.split(",").map(s => s.trim()).filter(Boolean),
     targetRoles: rolesText.split(",").map(s => s.trim()).filter(Boolean),
-    level, remoteOnly
+    level,
+    remoteOnly
   }), [skillsText, rolesText, level, remoteOnly]);
 
-  const matches = useMemo(() => sampleJobs
+  const activeJobs = showLiveJobs ? liveJobs : sampleJobs;
+  const matches = useMemo(() => activeJobs
     .filter(job => !candidate.remoteOnly || job.remote)
     .map(job => ({ job, explanation: explainJobMatch(candidate, job) }))
     .filter(item => item.explanation.score >= minimumScore)
-    .sort((a, b) => b.explanation.score - a.explanation.score), [candidate, minimumScore]);
+    .sort((a, b) => b.explanation.score - a.explanation.score),
+  [activeJobs, candidate, minimumScore]);
+
+  async function handleLiveSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const query = liveQuery.trim().slice(0, 80);
+    if (!query) {
+      setLiveError("Enter a job title or keyword to search.");
+      return;
+    }
+    setIsSearching(true);
+    setLiveError("");
+    try {
+      const response = await fetch(`/api/jobs?q=${encodeURIComponent(query)}&limit=40`, {
+        headers: { Accept: "application/json" }
+      });
+      const payload: unknown = await response.json();
+      if (!response.ok) {
+        const message = payload && typeof payload === "object" && "error" in payload
+          && typeof payload.error === "string" ? payload.error : "Live job search is temporarily unavailable.";
+        throw new Error(message);
+      }
+      if (!payload || typeof payload !== "object" || !("jobs" in payload) || !Array.isArray(payload.jobs)) {
+        throw new Error("The job source returned an unexpected response.");
+      }
+      setLiveJobs(payload.jobs as Job[]);
+      setShowLiveJobs(true);
+      setLiveFetchedAt(new Date().toISOString());
+      setNotice("");
+    } catch (error) {
+      setShowLiveJobs(true);
+      setLiveError(error instanceof Error ? error.message : "Could not load live jobs. Please try again.");
+    } finally {
+      setIsSearching(false);
+    }
+  }
 
   function selectCv(file?: File) {
     if (!file) return;
     const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
     if (![".pdf", ".docx", ".txt"].includes(ext)) {
-      setNotice("Unsupported file type. Choose PDF, DOCX, or TXT."); return;
+      setNotice("Unsupported file type. Choose PDF, DOCX, or TXT.");
+      return;
     }
     if (file.size > 10 * 1024 * 1024) {
-      setNotice("File exceeds the 10 MB limit."); return;
+      setNotice("File exceeds the 10 MB limit.");
+      return;
     }
     setCvName(file.name);
     setNotice("Selected locally only. The file has not been uploaded or parsed.");
   }
 
   return <main className="shell">
-    <header className="topbar"><a className="brand" href="#"><span className="brand-mark">J</span> Job Agent</a><span className="phase-pill">PHASE 1 · LOCAL DEMO</span></header>
-    <section className="hero"><div><p className="eyebrow">YOUR PERSONAL JOB WORKSPACE</p><h1>Find work that fits.<br/><span>Apply with intent.</span></h1><p className="hero-copy">A foundation for global job discovery, explainable matching, tailored applications, and secure Gmail automation.</p></div><div className="hero-stat"><span className="stat-number">{String(matches.length).padStart(2, "0")}</span><span className="stat-label">sample matches</span></div></section>
-    <div className="notice"><strong>Demo mode:</strong> listings are examples, no live job search is connected, and nothing is emailed.</div>
+    <header className="topbar">
+      <a className="brand" href="#"><span className="brand-mark">J</span> Job Agent</a>
+      <span className="phase-pill">PHASE 2 · LIVE JOB SEARCH</span>
+    </header>
+    <section className="hero">
+      <div>
+        <p className="eyebrow">YOUR PERSONAL JOB WORKSPACE</p>
+        <h1>Find work that fits.<br/><span>Apply with intent.</span></h1>
+        <p className="hero-copy">Search public remote listings, compare them against your profile, and see why each role may fit.</p>
+      </div>
+      <div className="hero-stat">
+        <span className="stat-number">{String(matches.length).padStart(2, "0")}</span>
+        <span className="stat-label">{showLiveJobs ? "live matches" : "sample matches"}</span>
+      </div>
+    </section>
+
+    {showLiveJobs
+      ? <div className="notice"><strong>Live-source mode:</strong> listings are retrieved from Remotive and cached server-side for up to six hours. The source may delay listings by up to 24 hours. Matching is heuristic; always review the original listing.</div>
+      : <div className="notice"><strong>Demo mode:</strong> sample listings are examples. Use the live search below to query the public Remotive feed. No application is submitted and no email is sent.</div>}
     {notice && <p className="inline-notice" role="status">{notice}</p>}
+
     <div className="layout">
       <aside className="panel profile-panel">
-        <div className="section-heading"><div><p className="eyebrow">01 / CANDIDATE</p><h2>Your profile</h2></div><span className="step-icon">CV</span></div>
-        <label className="upload-box"><input type="file" accept=".pdf,.docx,.txt" onChange={e => selectCv(e.target.files?.[0])}/><span className="upload-icon">↑</span><strong>{cvName || "Choose your CV"}</strong><small>PDF, DOCX, or TXT · max 10 MB</small><small className="muted">Local selection only in this phase</small></label>
-        <label className="field-label" htmlFor="roles">Target roles</label><input id="roles" value={rolesText} onChange={e => setRolesText(e.target.value)} placeholder="Python Developer, QA Engineer"/>
-        <label className="field-label" htmlFor="skills">Skills (comma-separated)</label><textarea id="skills" rows={3} value={skillsText} onChange={e => setSkillsText(e.target.value)} placeholder="Python, SQL, Git"/>
-        <label className="field-label" htmlFor="level">Experience level</label><select id="level" value={level} onChange={e => setLevel(e.target.value as CandidateProfile["level"])}><option value="entry">Entry level</option><option value="mid">Mid level</option><option value="senior">Senior</option></select>
-        <label className="toggle-row"><span><strong>Remote positions only</strong><small>Exclude non-remote roles</small></span><input type="checkbox" checked={remoteOnly} onChange={e => setRemoteOnly(e.target.checked)}/></label>
-        <div className="range-heading"><label htmlFor="score">Minimum match score</label><strong>{minimumScore}%</strong></div><input id="score" className="range" type="range" min={30} max={95} step={5} value={minimumScore} onChange={e => setMinimumScore(Number(e.target.value))}/>
-        <button className="primary-button" onClick={saveProfileSettings}>Save profile settings</button><button className="secondary-button" onClick={loadProfileSettings}>Load saved profile</button>
+        <div className="section-heading">
+          <div><p className="eyebrow">01 / CANDIDATE</p><h2>Your profile</h2></div>
+          <span className="step-icon">CV</span>
+        </div>
+        <label className="upload-box">
+          <input type="file" accept=".pdf,.docx,.txt" onChange={e => selectCv(e.target.files?.[0])}/>
+          <span className="upload-icon">↑</span>
+          <strong>{cvName || "Choose your CV"}</strong>
+          <small>PDF, DOCX, or TXT · max 10 MB</small>
+          <small className="muted">Local selection only; no upload or parsing</small>
+        </label>
+        <label className="field-label" htmlFor="roles">Target roles</label>
+        <input id="roles" value={rolesText} onChange={e => setRolesText(e.target.value)} placeholder="Python Developer, QA Engineer"/>
+        <label className="field-label" htmlFor="skills">Skills (comma-separated)</label>
+        <textarea id="skills" rows={3} value={skillsText} onChange={e => setSkillsText(e.target.value)} placeholder="Python, SQL, Git"/>
+        <label className="field-label" htmlFor="level">Experience level</label>
+        <select id="level" value={level} onChange={e => setLevel(e.target.value as CandidateProfile["level"])}>
+          <option value="entry">Entry level</option><option value="mid">Mid level</option><option value="senior">Senior</option>
+        </select>
+        <label className="toggle-row">
+          <span><strong>Remote positions only</strong><small>Exclude non-remote roles</small></span>
+          <input type="checkbox" checked={remoteOnly} onChange={e => setRemoteOnly(e.target.checked)}/>
+        </label>
+        <div className="range-heading"><label htmlFor="score">Minimum match score</label><strong>{minimumScore}%</strong></div>
+        <input id="score" className="range" type="range" min={30} max={95} step={5} value={minimumScore} onChange={e => setMinimumScore(Number(e.target.value))}/>
+        <button className="primary-button" onClick={saveProfileSettings}>Save profile settings</button>
+        <button className="secondary-button" onClick={loadProfileSettings}>Load saved profile</button>
       </aside>
-      <section className="results"><div className="section-heading results-heading"><div><p className="eyebrow">02 / MATCHING</p><h2>Job opportunities</h2></div><span className="count-pill">{matches.length} matches</span></div><p className="subheading">Sample listings scored against your current profile.</p>
-        {matches.length === 0 && <div className="empty-state">No sample jobs meet this score and preference combination. Lower the threshold or change your profile.</div>}
-        {matches.map(({job, explanation}) => <article className="job-card" key={job.id}><div className="job-card-top"><div className="company-avatar">{job.company.slice(0,1)}</div><div className="job-title-group"><h3>{job.title}</h3><p>{job.company} · {job.location}</p></div><div className="score"><strong>{explanation.score}%</strong><small>match</small></div></div><p className="job-description">{job.description}</p><div className="chips">{job.skills.map(skill => <span className="chip" key={skill}>{skill}</span>)}</div>
-          <details className="match-details"><summary>Why this match?</summary><div className="match-reasons"><p><strong>Role:</strong> {explanation.roleMatch ? "Your target role aligns with this title." : "This title does not directly match your target roles."}</p><p><strong>Experience:</strong> {explanation.levelMatch ? "Exact experience-level match." : "Experience level differs; this receives partial credit."}</p><p><strong>Matched skills:</strong> {explanation.matchedSkills.length ? explanation.matchedSkills.join(", ") : "No listed skills matched yet."}</p>{explanation.missingSkills.length > 0 && <p><strong>Skills not listed in your profile:</strong> {explanation.missingSkills.join(", ")}</p>}</div></details><div className="job-card-bottom"><span className={job.remote ? "remote-tag" : "onsite-tag"}>{job.remote ? "REMOTE" : "ON-SITE / HYBRID"}</span><a href={job.url} target="_blank" rel="noreferrer">Example listing ↗</a></div></article>)}
-        <div className="next-step"><span className="next-step-icon">↗</span><div><strong>Next integration: live job sources</strong><p>Replace demo data with authorized APIs and feeds, then persist normalized listings in Supabase.</p></div></div>
+
+      <section className="results">
+        <div className="section-heading results-heading">
+          <div><p className="eyebrow">02 / MATCHING</p><h2>Job opportunities</h2></div>
+          <span className="count-pill">{matches.length} matches</span>
+        </div>
+        <div className="live-search-panel">
+          <form className="live-search-form" onSubmit={handleLiveSearch}>
+            <label htmlFor="live-query">Search public remote jobs</label>
+            <div className="live-search-controls">
+              <input id="live-query" value={liveQuery} onChange={e => setLiveQuery(e.target.value)} maxLength={80} placeholder="Python developer, data analyst, cybersecurity"/>
+              <button className="primary-button live-submit" type="submit" disabled={isSearching}>{isSearching ? "Searching…" : "Search live jobs"}</button>
+              <button className="secondary-button" type="button" onClick={() => { setShowLiveJobs(false); setLiveError(""); }}>Show demo data</button>
+            </div>
+            <p className="source-disclaimer">Source: <a href="https://remotive.com/remote-jobs/api" target="_blank" rel="noreferrer">Remotive public API</a>. Results are cached up to six hours; the source recommends no more than four upstream requests per day. Links credit and lead back to Remotive.</p>
+          </form>
+          {liveError && <p className="inline-error" role="alert">{liveError}</p>}
+          {showLiveJobs && liveFetchedAt && <p className="retrieved-note">Fetched by this session: {new Date(liveFetchedAt).toLocaleString()} · source data may be cached.</p>}
+        </div>
+        <p className="subheading">{showLiveJobs ? "Live-source results ranked against your current candidate profile." : "Sample listings scored against your current profile."}</p>
+        {matches.length === 0 && <div className="empty-state">{showLiveJobs && isSearching ? "Searching for matching roles…" : showLiveJobs ? "No live listings meet this search and score threshold. Try another keyword or lower the threshold." : "No sample jobs meet this score and preference combination. Lower the threshold or change your profile."}</div>}
+        {matches.map(({job, explanation}) => <article className="job-card" key={job.id}>
+          <div className="job-card-top">
+            <div className="company-avatar">{job.company.slice(0, 1) || "J"}</div>
+            <div className="job-title-group"><h3>{job.title}</h3><p>{job.company} · {job.location}</p></div>
+            <div className="score"><strong>{explanation.score}%</strong><small>match</small></div>
+          </div>
+          <p className="job-description">{job.description}</p>
+          {job.salary && <p className="job-meta"><strong>Listed compensation:</strong> {job.salary}</p>}
+          {job.publishedAt && <p className="job-meta"><strong>Published:</strong> {new Date(job.publishedAt).toLocaleDateString()}</p>}
+          <div className="chips">{job.skills.length
+            ? job.skills.map(skill => <span className="chip" key={skill}>{skill}</span>)
+            : <span className="chip">No known skill tags extracted</span>}</div>
+          <details className="match-details">
+            <summary>Why this match?</summary>
+            <div className="match-reasons">
+              <p><strong>Role:</strong> {explanation.roleMatch ? "Your target role aligns with this title." : "This title does not directly match your target roles."}</p>
+              <p><strong>Experience:</strong> {explanation.levelMatch === null ? "The listing does not specify a level; a neutral score was used." : explanation.levelMatch ? "Exact experience-level match." : "Experience level differs; this receives partial credit."}</p>
+              <p><strong>Matched skills:</strong> {explanation.matchedSkills.length ? explanation.matchedSkills.join(", ") : "No listed skills matched yet."}</p>
+              {explanation.missingSkills.length > 0 && <p><strong>Skills not listed in your profile:</strong> {explanation.missingSkills.join(", ")}</p>}
+            </div>
+          </details>
+          <div className="job-card-bottom">
+            <span className={job.remote ? "remote-tag" : "onsite-tag"}>{job.remote ? "REMOTE" : "ON-SITE / HYBRID"}</span>
+            <a href={job.url} target="_blank" rel="noreferrer">{job.source === "Remotive" ? "View on Remotive ↗" : "Example listing ↗"}</a>
+          </div>
+        </article>)}
+        <div className="next-step">
+          <span className="next-step-icon">↗</span>
+          <div><strong>Next: secure application preparation</strong><p>Live discovery is read-only. CV parsing, tailoring, persistence, Gmail, and any submission workflow remain disconnected pending a safe implementation and your explicit setup.</p></div>
+        </div>
       </section>
     </div>
     <footer><span>JOB AGENT · PRIVATE BY DESIGN</span><span>Gmail sending: not connected</span></footer>

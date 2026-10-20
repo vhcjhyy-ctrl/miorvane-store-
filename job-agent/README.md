@@ -6,14 +6,14 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Next.js + TypeScript dashboard
 - Candidate preferences form with explicit browser-local save/load (no cloud upload)
 - CV file picker (selection only; no upload or parsing yet)
-- Sample listings with explainable match scoring, matched skills, missing skills, and role/experience reasons
+- Live remote-job search through the public Remotive feed, plus local sample listings
+- Explainable match scoring with matched skills, missing skills, and role/experience reasons
 - Scoring tests, including edge cases for duplicate and empty skill/role input
-- GitHub Actions checks ESLint, unit tests, and the production build on changes
-- GitHub Actions CI for lint, unit tests, and production build
+- GitHub Actions runs ESLint, unit tests, and a production build on changes
 - Initial Supabase SQL schema and RLS policies
 
 ## Not implemented yet
-Candidate preferences can be explicitly saved to and loaded from browser local storage; CV files are not stored. No live job discovery, CV parsing, Supabase connection, Gmail OAuth, email sending, or scheduled automation is active. The job listings are demo data. Do not treat the UI as a deployed service.
+Candidate preferences can be explicitly saved to and loaded from browser local storage; CV files are not stored. Live search is read-only and uses Remotive's public API; upstream data is cached for six hours and every listing links back to Remotive. This is not a broad all-market search. CV parsing, Supabase connection, Gmail OAuth, email sending, and scheduled automation are not active. Demo data remains available.
 
 ## Run locally
 Requirements: Node.js 20+.
@@ -31,7 +31,7 @@ Open http://localhost:3000.
 ## Next steps
 1. Create a Supabase project and review/apply `supabase/migrations/0001_initial_schema.sql`.
 2. Add private CV storage and server-side PDF/DOCX parsing; require the candidate to confirm extracted facts.
-3. Implement authorized job source adapters.
+3. Review Remotive's current API terms and add other authorized job source adapters with their own attribution and rate limits.
 4. Add duplicate prevention and policy checks.
 5. Configure Gmail OAuth with least-privilege scopes and server-side token storage.
 6. Test delivery with a dedicated mailbox before enabling automatic sending.
