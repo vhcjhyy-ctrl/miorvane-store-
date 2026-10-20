@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { explainJobMatch, type CandidateProfile, type Job } from "@/lib/scoring";
 import { buildCoverLetterDraft } from "@/lib/application-draft";
 import { readShortlist, toggleShortlist } from "@/lib/shortlist";
+import { readApplicationTracker, updateApplicationTracker, type ApplicationStatus, type TrackedApplication } from "@/lib/application-tracker";
 
 const sampleJobs: Job[] = [
   { id: "demo-1", title: "Junior Python Developer", company: "Northstar Systems", location: "Remote — Worldwide", remote: true, skills: ["Python", "SQL", "Git"], level: "entry", description: "Support backend services, write Python code, and work with relational databases.", url: "https://example.com/jobs/demo-1" },
@@ -28,6 +29,8 @@ export default function HomePage() {
   const [liveFetchedAt, setLiveFetchedAt] = useState("");
   const [savedJobs, setSavedJobs] = useState<Job[]>([]);
   const [showSavedJobs, setShowSavedJobs] = useState(false);
+  const [trackedApplications, setTrackedApplications] = useState<TrackedApplication[]>([]);
+  const [showApplications, setShowApplications] = useState(false);
   const [draftForJob, setDraftForJob] = useState<Job | null>(null);
   const [draftText, setDraftText] = useState("");
 
@@ -85,7 +88,7 @@ export default function HomePage() {
     remoteOnly
   }), [skillsText, rolesText, level, remoteOnly]);
 
-  const activeJobs = showSavedJobs ? savedJobs : showLiveJobs ? liveJobs : sampleJobs;
+  const activeJobs = showApplications ? trackedApplications.map(item => item.job) : showSavedJobs ? savedJobs : showLiveJobs ? liveJobs : sampleJobs;
   const matches = useMemo(() => activeJobs
     .filter(job => !candidate.remoteOnly || job.remote)
     .map(job => ({ job, explanation: explainJobMatch(candidate, job) }))
@@ -116,6 +119,7 @@ export default function HomePage() {
         throw new Error("The job source returned an unexpected response.");
       }
       setLiveJobs(payload.jobs as Job[]);
+      setShowApplications(false);
       setShowSavedJobs(false);
       setShowLiveJobs(true);
       setLiveFetchedAt(new Date().toISOString());
@@ -144,6 +148,7 @@ export default function HomePage() {
   }
 
   function showDemoJobs() {
+    setShowApplications(false);
     setShowSavedJobs(false);
     setShowLiveJobs(false);
     setLiveError("");
@@ -171,6 +176,45 @@ export default function HomePage() {
       setNotice(wasSaved ? "Role removed from your browser-local shortlist." : "Role saved in your browser-local shortlist.");
     } catch {
       setNotice("The shortlist changed for this session, but the browser could not persist it.");
+    }
+  }
+
+  function loadTrackedApplications() {
+    try {
+      const applications = readApplicationTracker(window.localStorage.getItem("job-agent.applications.v1"));
+      setTrackedApplications(applications);
+      setShowApplications(true);
+      setShowSavedJobs(false);
+      setShowLiveJobs(false);
+      setLiveError("");
+      setNotice(applications.length
+        ? "Loaded " + applications.length + " tracked applications from this browser."
+        : "No tracked applications yet. Choose a status from a job listing to start tracking.");
+    } catch {
+      setNotice("The browser could not access local storage. Application tracking is unavailable.");
+    }
+  }
+
+  function changeApplicationStatus(job: Job, status: string) {
+    const isKnownStatus = status === "" || ["interested", "preparing", "applied", "interview", "offer", "rejected", "withdrawn"].includes(status);
+    if (!isKnownStatus) {
+      setNotice("Unknown application status; no changes were saved.");
+      return;
+    }
+    const updated = updateApplicationTracker(
+      trackedApplications,
+      job,
+      status as ApplicationStatus | "",
+      new Date().toISOString()
+    );
+    setTrackedApplications(updated);
+    try {
+      window.localStorage.setItem("job-agent.applications.v1", JSON.stringify(updated));
+      setNotice(status
+        ? "Application status saved in this browser. No application was sent."
+        : "Application tracking removed for this role.");
+    } catch {
+      setNotice("The status changed for this session, but the browser could not persist it.");
     }
   }
 
@@ -209,15 +253,17 @@ export default function HomePage() {
       </div>
       <div className="hero-stat">
         <span className="stat-number">{String(matches.length).padStart(2, "0")}</span>
-        <span className="stat-label">{showSavedJobs ? "saved matches" : showLiveJobs ? "live matches" : "sample matches"}</span>
+        <span className="stat-label">{showApplications ? "tracked applications" : showSavedJobs ? "saved matches" : showLiveJobs ? "live matches" : "sample matches"}</span>
       </div>
     </section>
 
-    {showSavedJobs
-      ? <div className="notice"><strong>Saved roles:</strong> these records are stored only in this browser. Nothing is uploaded or submitted.</div>
-      : showLiveJobs
-        ? <div className="notice"><strong>Live-source mode:</strong> listings are retrieved from Remotive and cached server-side for up to six hours. The source may delay listings by up to 24 hours. Matching is heuristic; always review the original listing.</div>
-        : <div className="notice"><strong>Demo mode:</strong> sample listings are examples. Use the live search below to query the public Remotive feed. No application is submitted and no email is sent.</div>}
+    {showApplications
+      ? <div className="notice"><strong>Application tracker:</strong> statuses and role details are saved in this browser only. There is no account sync and nothing is submitted or emailed.</div>
+      : showSavedJobs
+        ? <div className="notice"><strong>Saved roles:</strong> these records are stored only in this browser. Nothing is uploaded or submitted.</div>
+        : showLiveJobs
+          ? <div className="notice"><strong>Live-source mode:</strong> listings are retrieved from Remotive and cached server-side for up to six hours. The source may delay listings by up to 24 hours. Matching is heuristic; always review the original listing.</div>
+          : <div className="notice"><strong>Demo mode:</strong> sample listings are examples. Use the live search below to query the public Remotive feed. No application is submitted and no email is sent.</div>}
     {notice && <p className="inline-notice" role="status">{notice}</p>}
 
     <div className="layout">
@@ -269,13 +315,14 @@ export default function HomePage() {
           </form>
           <div className="source-mode-actions">
             <button className="secondary-button" type="button" onClick={loadSavedJobs}>Saved roles ({savedJobs.length})</button>
+            <button className="secondary-button" type="button" onClick={loadTrackedApplications}>Application tracker ({trackedApplications.length})</button>
             <button className="secondary-button" type="button" onClick={showDemoJobs}>Show demo data</button>
           </div>
           {liveError && <p className="inline-error" role="alert">{liveError}</p>}
           {showLiveJobs && liveFetchedAt && <p className="retrieved-note">Fetched by this session: {new Date(liveFetchedAt).toLocaleString()} · source data may be cached.</p>}
         </div>
-        <p className="subheading">{showSavedJobs ? "Your browser-local shortlist ranked against your current candidate profile." : showLiveJobs ? "Live-source results ranked against your current candidate profile." : "Sample listings scored against your current profile."}</p>
-        {matches.length === 0 && <div className="empty-state">{showSavedJobs ? (savedJobs.length === 0 ? "No roles saved yet. Switch to live or demo listings and choose Save role." : "No saved roles meet your current score threshold. Lower the threshold or change your profile.") : showLiveJobs && isSearching ? "Searching for matching roles…" : showLiveJobs ? "No live listings meet this search and score threshold. Try another keyword or lower the threshold." : "No sample jobs meet this score and preference combination. Lower the threshold or change your profile."}</div>}
+        <p className="subheading">{showApplications ? "Your tracked applications ranked against your current candidate profile." : showSavedJobs ? "Your browser-local shortlist ranked against your current candidate profile." : showLiveJobs ? "Live-source results ranked against your current candidate profile." : "Sample listings scored against your current profile."}</p>
+        {matches.length === 0 && <div className="empty-state">{showApplications ? (trackedApplications.length === 0 ? "No applications being tracked yet. Open live or demo listings and select a status." : "No tracked roles meet your current score threshold. Lower the threshold or change your profile.") : showSavedJobs ? (savedJobs.length === 0 ? "No roles saved yet. Switch to live or demo listings and choose Save role." : "No saved roles meet your current score threshold. Lower the threshold or change your profile.") : showLiveJobs && isSearching ? "Searching for matching roles…" : showLiveJobs ? "No live listings meet this search and score threshold. Try another keyword or lower the threshold." : "No sample jobs meet this score and preference combination. Lower the threshold or change your profile."}</div>}
         {matches.map(({job, explanation}) => <article className="job-card" key={job.id}>
           <div className="job-card-top">
             <div className="company-avatar">{job.company.slice(0, 1) || "J"}</div>
@@ -297,6 +344,25 @@ export default function HomePage() {
               {explanation.missingSkills.length > 0 && <p><strong>Skills not listed in your profile:</strong> {explanation.missingSkills.join(", ")}</p>}
             </div>
           </details>
+          <div className="tracker-control">
+            <label className="field-label" htmlFor={"application-status-" + job.id}>Application status</label>
+            <select
+              id={"application-status-" + job.id}
+              className="tracker-status"
+              value={trackedApplications.find(item => item.job.id === job.id)?.status ?? ""}
+              onChange={event => changeApplicationStatus(job, event.target.value)}
+            >
+              <option value="">Not tracking</option>
+              <option value="interested">Interested</option>
+              <option value="preparing">Preparing</option>
+              <option value="applied">Applied</option>
+              <option value="interview">Interview</option>
+              <option value="offer">Offer</option>
+              <option value="rejected">Rejected</option>
+              <option value="withdrawn">Withdrawn</option>
+            </select>
+            {trackedApplications.some(item => item.job.id === job.id) && <small className="tracker-updated">Updated {new Date(trackedApplications.find(item => item.job.id === job.id)!.updatedAt).toLocaleString()}</small>}
+          </div>
           <div className="job-card-bottom">
             <span className={job.remote ? "remote-tag" : "onsite-tag"}>{job.remote ? "REMOTE" : "ON-SITE / HYBRID"}</span>
             <div className="job-card-actions">
