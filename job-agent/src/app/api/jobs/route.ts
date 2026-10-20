@@ -5,7 +5,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const REMOTIVE_API_URL = "https://remotive.com/api/remote-jobs?limit=100";
-const REMOTIVE_JOB_URL_PREFIX = "https://remotive.com/remote-jobs/";
 const UPSTREAM_CACHE_SECONDS = 6 * 60 * 60;
 
 type UnknownRecord = Record<string, unknown>;
@@ -142,9 +141,9 @@ export async function GET(request: Request) {
       .filter((job): job is Job => job !== null)
       .filter((job) => {
         if (!query) return true;
-        return (job.title + " " + job.company + " " + job.description + " " + (job.category ?? ""))
-          .toLowerCase()
-          .includes(query);
+        const searchable = (job.title + " " + job.company + " " + job.description + " " + (job.category ?? ""))
+          .toLowerCase();
+        return query.split(/\\s+/).filter(Boolean).every((token) => searchable.includes(token));
       })
       .slice(0, limit);
 
