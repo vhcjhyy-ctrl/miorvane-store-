@@ -119,6 +119,6 @@ export async function extractResumeText(file: ResumeFileLike): Promise<ResumeExt
       : [];
     return makeResult(fileType, pageTexts.join("\n\n"), { pageCount, extraWarnings });
   } finally {
-    await document.destroy();
+    await loadingTask.destroy();
   }
 }
