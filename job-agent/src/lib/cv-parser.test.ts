@@ -29,8 +29,8 @@ describe("local CV text extraction helpers", () => {
   });
 
   it("normalizes whitespace without merging lines or changing ordinary text", () => {
-    expect(normalizeResumeText("  Ahmed\\r\\n  Python   Developer \\n\\n\\n SQL  "))
-      .toBe("Ahmed\\nPython Developer\\n\\nSQL");
+    expect(normalizeResumeText("  Ahmed\r\n  Python   Developer \n\n\n SQL  "))
+      .toBe("Ahmed\nPython Developer\n\nSQL");
   });
 
   it("caps text to a caller-provided safe length", () => {
@@ -39,13 +39,13 @@ describe("local CV text extraction helpers", () => {
   });
 
   it("reads TXT files locally and reports a useful empty-text warning", async () => {
-    const result = await extractResumeText(textFile("resume.txt", "  Python  \\nSQL\\n"));
+    const result = await extractResumeText(textFile("resume.txt", "  Python  \nSQL\n"));
     expect(result.fileType).toBe("txt");
-    expect(result.text).toBe("Python\\nSQL");
+    expect(result.text).toBe("Python\nSQL");
     expect(result.characterCount).toBe(result.text.length);
     expect(result.warning).toBeUndefined();
 
-    const empty = await extractResumeText(textFile("blank.txt", "  \\n\\n "));
+    const empty = await extractResumeText(textFile("blank.txt", "  \n\n "));
     expect(empty.text).toBe("");
     expect(empty.warning).toContain("No selectable text");
   });

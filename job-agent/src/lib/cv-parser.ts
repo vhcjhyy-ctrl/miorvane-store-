@@ -64,7 +64,7 @@ function makeResult(
   const prepared = prepareResumeText(rawText);
   const warnings = [...(options.extraWarnings ?? [])];
   if (prepared.truncated) warnings.push("Text was capped at 50,000 characters to keep processing manageable.");
-  if (!prepared.text) warnings.push("No selectable text was found. Scanned/image-only PDFs need OCR, which is not included.");
+  if (!prepared.text) warnings.push("No selectable text was found in this file. If it is an image-only PDF, OCR would be needed; OCR is not included.");
   return {
     fileType,
     text: prepared.text,

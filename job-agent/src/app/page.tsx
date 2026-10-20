@@ -158,7 +158,7 @@ export default function HomePage() {
       setResumeText(result.text);
       setResumeInfo(
         "Extracted " + result.characterCount.toLocaleString() + " characters locally. " +
-        (result.warning ?? "The file and extracted text are not uploaded or saved.")
+        (result.warning ? result.warning + " " : "") + "The file and extracted text are not uploaded or saved."
       );
       setNotice(result.warning
         ? "CV read in this browser; review the extraction warning before using the text."
