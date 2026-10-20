@@ -1,11 +1,11 @@
-# Job Agent — Phase 4
+# Job Agent — Phase 5
 
 A starter workspace for a personal AI job application agent. This folder is intentionally isolated from the existing store project.
 
 ## Current phase
 - Next.js + TypeScript dashboard
 - Candidate preferences form with explicit browser-local save/load (no cloud upload)
-- CV file picker (selection only; no upload or parsing yet)
+- Browser-local text extraction for PDF, DOCX, and TXT, with size/page/character limits and reviewable skill suggestions
 - Live remote-job search through the public Remotive feed, plus local sample listings
 - Explainable match scoring with matched skills, missing skills, and role/experience reasons
 - Browser-local shortlist with defensive storage parsing
@@ -17,10 +17,10 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Initial Supabase SQL schema and RLS policies
 
 ## Not implemented yet
-Candidate preferences, shortlist, and application statuses are saved only in browser local storage; CV files are not stored. Live search is read-only and uses Remotive's public API. Upstream data is cached for six hours, listings link back to Remotive, and results may be delayed by 24 hours. The source recommends no more than four upstream requests per day. This is not a broad all-market search. Cover letters are deterministic templates, not AI-generated text, and must be reviewed before use. The Supabase SQL file is a reviewed draft only and has not been applied to a project; verify policies and run it in a test project first. CV parsing, Supabase connection, Gmail OAuth, email sending, and scheduled automation are not active. Demo data remains available.
+Candidate preferences, shortlist, and application statuses are saved only in browser local storage. CV bytes and extracted CV text are processed in the current browser page and are not uploaded or saved. Live search is read-only and uses Remotive's public API. Upstream data is cached for six hours, listings link back to Remotive, and results may be delayed by 24 hours. The source recommends no more than four upstream requests per day. This is not a broad all-market search. Cover letters are deterministic templates, not AI-generated text, and must be reviewed before use. PDF/DOCX/TXT text extraction is local; scanned/image-only PDFs do not get OCR. Skill suggestions use a fixed list and need candidate confirmation. The Supabase SQL file is a reviewed draft only and has not been applied to a project; verify policies and run it in a test project first. CV parsing, Supabase connection, Gmail OAuth, email sending, and scheduled automation are not active. Demo data remains available.
 
 ## Run locally
-Requirements: Node.js 20+.
+Requirements: Node.js 22.13+.
 
 ```bash
 cd job-agent
@@ -34,7 +34,7 @@ Open http://localhost:3000.
 
 ## Next steps
 1. Create a Supabase project and review/apply `supabase/migrations/0001_initial_schema.sql`.
-2. Add private CV storage and server-side PDF/DOCX parsing; require the candidate to confirm extracted facts.
+2. Add candidate-confirmed resume section parsing, and only consider OCR or cloud storage with separate consent and privacy controls.
 3. Review Remotive's current API terms and add other authorized job source adapters with their own attribution and rate limits.
 4. Add account-backed application history, duplicate prevention, and explicit user review before any submission.
 5. Configure Gmail OAuth with least-privilege scopes and server-side token storage.

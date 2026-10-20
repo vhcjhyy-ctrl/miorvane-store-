@@ -43,7 +43,7 @@ const knownSkills = [
   "Playwright", "Cypress", "Salesforce", "Kotlin", "Swift"
 ];
 
-function extractKnownSkills(sourceText: string): string[] {
+export function extractKnownSkills(sourceText: string): string[] {
   const found: string[] = [];
   for (const skill of knownSkills) {
     const escaped = skill.replace(/[.*+?^$()|[\]\\]/g, "\\$&");

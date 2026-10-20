@@ -5,6 +5,8 @@ import { explainJobMatch, type CandidateProfile, type Job } from "@/lib/scoring"
 import { buildCoverLetterDraft } from "@/lib/application-draft";
 import { readShortlist, toggleShortlist } from "@/lib/shortlist";
 import { readApplicationTracker, updateApplicationTracker, type ApplicationStatus, type TrackedApplication } from "@/lib/application-tracker";
+import { extractResumeText } from "@/lib/cv-parser";
+import { extractKnownSkills } from "@/lib/remotive";
 
 const sampleJobs: Job[] = [
   { id: "demo-1", title: "Junior Python Developer", company: "Northstar Systems", location: "Remote — Worldwide", remote: true, skills: ["Python", "SQL", "Git"], level: "entry", description: "Support backend services, write Python code, and work with relational databases.", url: "https://example.com/jobs/demo-1" },
@@ -14,6 +16,9 @@ const sampleJobs: Job[] = [
 
 export default function HomePage() {
   const [cvName, setCvName] = useState("");
+  const [resumeText, setResumeText] = useState("");
+  const [resumeInfo, setResumeInfo] = useState("");
+  const [isParsingResume, setIsParsingResume] = useState(false);
   const [candidateName, setCandidateName] = useState("");
   const [skillsText, setSkillsText] = useState("Python, SQL, Git");
   const [rolesText, setRolesText] = useState("Junior Python Developer, Python Developer");
@@ -141,19 +146,59 @@ export default function HomePage() {
     }
   }
 
-  function selectCv(file?: File) {
+  async function selectCv(file?: File) {
     if (!file) return;
-    const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
-    if (![".pdf", ".docx", ".txt"].includes(ext)) {
-      setNotice("Unsupported file type. Choose PDF, DOCX, or TXT.");
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setNotice("File exceeds the 10 MB limit.");
-      return;
-    }
     setCvName(file.name);
-    setNotice("Selected locally only. The file has not been uploaded or parsed.");
+    setResumeText("");
+    setResumeInfo("");
+    setIsParsingResume(true);
+    setNotice("Reading the CV locally in this browser…");
+    try {
+      const result = await extractResumeText(file);
+      setResumeText(result.text);
+      setResumeInfo(
+        "Extracted " + result.characterCount.toLocaleString() + " characters locally. " +
+        (result.warning ?? "The file and extracted text are not uploaded or saved.")
+      );
+      setNotice(result.warning
+        ? "CV read in this browser; review the extraction warning before using the text."
+        : "CV text extracted locally. You can review it and suggest skills for the profile.");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not read this CV file.";
+      setResumeInfo(message);
+      setNotice(message);
+    } finally {
+      setIsParsingResume(false);
+    }
+  }
+
+  function suggestSkillsFromResume() {
+    const detected = extractKnownSkills(resumeText);
+    if (detected.length === 0) {
+      setNotice("No skills from the current recognition list were found. Review the text and enter skills manually.");
+      return;
+    }
+    const merged = new Map<string, string>();
+    for (const skill of skillsText.split(",").map(item => item.trim()).filter(Boolean)) {
+      const key = skill.toLowerCase();
+      if (!merged.has(key)) merged.set(key, skill);
+    }
+    const beforeCount = merged.size;
+    for (const skill of detected) {
+      const key = skill.toLowerCase();
+      if (!merged.has(key)) merged.set(key, skill);
+    }
+    setSkillsText(Array.from(merged.values()).join(", "));
+    const added = merged.size - beforeCount;
+    setNotice(added
+      ? "Added " + added + " skill suggestions. Review them for accuracy before saving your profile."
+      : "The recognized skills are already in your profile. Review them for accuracy.");
+  }
+
+  function clearExtractedResumeText() {
+    setResumeText("");
+    setResumeInfo("Extracted text cleared from page memory. The original file was not uploaded or saved.");
+    setNotice("Extracted CV text cleared.");
   }
 
   function showDemoJobs() {
@@ -252,7 +297,7 @@ export default function HomePage() {
   return <main className="shell">
     <header className="topbar">
       <a className="brand" href="#"><span className="brand-mark">J</span> Job Agent</a>
-      <span className="phase-pill">PHASE 4 · APPLICATION TRACKING</span>
+      <span className="phase-pill">PHASE 5 · PRIVATE CV READING</span>
     </header>
     <section className="hero">
       <div>
@@ -282,12 +327,24 @@ export default function HomePage() {
           <span className="step-icon">CV</span>
         </div>
         <label className="upload-box">
-          <input type="file" accept=".pdf,.docx,.txt" onChange={e => selectCv(e.target.files?.[0])}/>
+          <input type="file" accept=".pdf,.docx,.txt" disabled={isParsingResume} onChange={e => { void selectCv(e.target.files?.[0]); }}/>
           <span className="upload-icon">↑</span>
           <strong>{cvName || "Choose your CV"}</strong>
           <small>PDF, DOCX, or TXT · max 10 MB</small>
-          <small className="muted">Local selection only; no upload or parsing</small>
+          <small className="muted">Extracted in-browser only; never uploaded or saved</small>
         </label>
+        {isParsingResume && <p className="cv-status" role="status">Extracting text locally… larger PDFs may take a little longer.</p>}
+        {resumeInfo && <p className="cv-status" role="status">{resumeInfo}</p>}
+        {resumeText && <section className="cv-extract-panel" aria-label="Extracted CV text">
+          <div className="cv-extract-heading"><strong>Extracted CV text</strong><span>{resumeText.length.toLocaleString()} chars</span></div>
+          <textarea aria-label="Extracted CV text preview" rows={7} readOnly value={resumeText.slice(0, 5000)} />
+          {resumeText.length > 5000 && <small className="cv-status">Preview shows the first 5,000 characters; skill suggestions use the extracted text in page memory.</small>}
+          <div className="cv-extract-actions">
+            <button className="primary-button" type="button" onClick={suggestSkillsFromResume}>Suggest skills from CV</button>
+            <button className="secondary-button" type="button" onClick={clearExtractedResumeText}>Clear extracted text</button>
+          </div>
+          <small className="cv-status">Suggestions come from a fixed skill list, are not proof of proficiency, and must be confirmed by you. Text stays in current page memory and is not saved.</small>
+        </section>}
         <label className="field-label" htmlFor="candidate-name">Name for application drafts (optional)</label>
         <input id="candidate-name" value={candidateName} onChange={e => setCandidateName(e.target.value)} maxLength={80} placeholder="Your name"/>
         <label className="field-label" htmlFor="roles">Target roles</label>
