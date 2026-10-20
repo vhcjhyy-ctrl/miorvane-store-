@@ -11,6 +11,8 @@ create table if not exists public.audit_logs (id bigint generated always as iden
 alter table public.profiles enable row level security;
 alter table public.candidate_profiles enable row level security;
 alter table public.resumes enable row level security;
+alter table public.job_sources enable row level security;
+alter table public.jobs enable row level security;
 alter table public.job_matches enable row level security;
 alter table public.applications enable row level security;
 alter table public.automation_settings enable row level security;
@@ -21,7 +23,14 @@ create policy "Users can update own profile" on public.profiles for update to au
 create policy "Users can manage own candidate profile" on public.candidate_profiles for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 create policy "Users can manage own resumes" on public.resumes for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 create policy "Users can read own matches" on public.job_matches for select to authenticated using (user_id = (select auth.uid()));
+create policy "Authenticated users can read active unexpired jobs" on public.jobs for select to authenticated using (active = true and (expires_at is null or expires_at > now()));
+-- job_sources intentionally has no authenticated/anon policies: only trusted server-side code should manage source configuration.
 create policy "Users can manage own applications" on public.applications for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 create policy "Users can manage own automation settings" on public.automation_settings for all to authenticated using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 create policy "Users can read own audit logs" on public.audit_logs for select to authenticated using (user_id = (select auth.uid()));
 -- Job-source configuration must be managed by trusted server-side code, not exposed to end users.
+
+create index if not exists jobs_active_published_idx on public.jobs (active, published_at desc);
+create index if not exists job_matches_user_score_idx on public.job_matches (user_id, score desc);
+create index if not exists applications_user_status_updated_idx on public.applications (user_id, status, updated_at desc);
+create index if not exists resumes_user_created_idx on public.resumes (user_id, created_at desc);

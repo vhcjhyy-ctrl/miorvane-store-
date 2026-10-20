@@ -1,4 +1,4 @@
-# Job Agent — Phase 3
+# Job Agent — Phase 4
 
 A starter workspace for a personal AI job application agent. This folder is intentionally isolated from the existing store project.
 
@@ -13,10 +13,11 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Editable cover-letter template generated locally from candidate-entered fields; copy only, no sending
 - Scoring tests, including edge cases for duplicate and empty skill/role input
 - GitHub Actions runs ESLint, unit tests, and a production build on changes
+- Supabase migration draft now enables RLS on job sources and jobs, exposing only active, unexpired jobs to authenticated users
 - Initial Supabase SQL schema and RLS policies
 
 ## Not implemented yet
-Candidate preferences, shortlist, and application statuses are saved only in browser local storage; CV files are not stored. Live search is read-only and uses Remotive's public API. Upstream data is cached for six hours, listings link back to Remotive, and results may be delayed by 24 hours. The source recommends no more than four upstream requests per day. This is not a broad all-market search. Cover letters are deterministic templates, not AI-generated text, and must be reviewed before use. CV parsing, Supabase connection, Gmail OAuth, email sending, and scheduled automation are not active. Demo data remains available.
+Candidate preferences, shortlist, and application statuses are saved only in browser local storage; CV files are not stored. Live search is read-only and uses Remotive's public API. Upstream data is cached for six hours, listings link back to Remotive, and results may be delayed by 24 hours. The source recommends no more than four upstream requests per day. This is not a broad all-market search. Cover letters are deterministic templates, not AI-generated text, and must be reviewed before use. The Supabase SQL file is a reviewed draft only and has not been applied to a project; verify policies and run it in a test project first. CV parsing, Supabase connection, Gmail OAuth, email sending, and scheduled automation are not active. Demo data remains available.
 
 ## Run locally
 Requirements: Node.js 20+.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { explainJobMatch, type CandidateProfile, type Job } from "@/lib/scoring";
 import { buildCoverLetterDraft } from "@/lib/application-draft";
 import { readShortlist, toggleShortlist } from "@/lib/shortlist";
@@ -33,6 +33,15 @@ export default function HomePage() {
   const [showApplications, setShowApplications] = useState(false);
   const [draftForJob, setDraftForJob] = useState<Job | null>(null);
   const [draftText, setDraftText] = useState("");
+
+  useEffect(() => {
+    try {
+      setSavedJobs(readShortlist(window.localStorage.getItem("job-agent.shortlist.v1")));
+      setTrackedApplications(readApplicationTracker(window.localStorage.getItem("job-agent.applications.v1")));
+    } catch {
+      // Storage may be disabled; individual save/load actions show user-facing errors.
+    }
+  }, []);
 
   function saveProfileSettings() {
     try {
@@ -243,7 +252,7 @@ export default function HomePage() {
   return <main className="shell">
     <header className="topbar">
       <a className="brand" href="#"><span className="brand-mark">J</span> Job Agent</a>
-      <span className="phase-pill">PHASE 2 · LIVE JOB SEARCH</span>
+      <span className="phase-pill">PHASE 4 · APPLICATION TRACKING</span>
     </header>
     <section className="hero">
       <div>
