@@ -11,7 +11,7 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Browser-local shortlist with defensive storage parsing
 - Browser-local application status tracker (interested, preparing, applied, interview, offer, rejected, withdrawn)
 - Editable cover-letter template generated locally from candidate-entered fields; copy only, no sending
-- Scoring tests, including edge cases for duplicate and empty skill/role input
+- Vitest suites for scoring, Remotive normalization, browser-local shortlist, application tracking, cover-letter drafts, and local CV extraction
 - GitHub Actions runs ESLint, unit tests, and a production build on changes
 - Supabase migration draft now enables RLS on job sources and jobs, exposing only active, unexpired jobs to authenticated users
 - Initial Supabase SQL schema and RLS policies

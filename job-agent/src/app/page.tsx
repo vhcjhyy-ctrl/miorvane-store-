@@ -212,6 +212,7 @@ export default function HomePage() {
     try {
       const jobs = readShortlist(window.localStorage.getItem("job-agent.shortlist.v1"));
       setSavedJobs(jobs);
+      setShowApplications(false);
       setShowSavedJobs(true);
       setShowLiveJobs(false);
       setLiveError("");
