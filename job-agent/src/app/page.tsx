@@ -495,7 +495,7 @@ export default function HomePage() {
           <div className="ai-consent-box">
             <label className="ai-consent-row">
               <input type="checkbox" checked={aiConsent} onChange={event => setAiConsent(event.target.checked)} disabled={isAiDrafting}/>
-              <span>I agree to send my entered name, target roles, skills, and this job's title, company, and description to OpenAI to generate this draft. My CV file and extracted CV text will not be sent.</span>
+              <span>I agree to send my entered name, target roles, skills, and the selected job title, company, and description to OpenAI to generate this draft. My CV file and extracted CV text will not be sent.</span>
             </label>
             <button className="primary-button ai-generate-button" type="button" disabled={!aiConsent || isAiDrafting} onClick={() => { void generateAiCoverLetterDraft(); }}>
               {isAiDrafting ? "Generating AI draft…" : "Generate AI version"}
