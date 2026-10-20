@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { explainJobMatch, type CandidateProfile, type Job } from "@/lib/scoring";
+import { buildCoverLetterDraft } from "@/lib/application-draft";
 
 const sampleJobs: Job[] = [
   { id: "demo-1", title: "Junior Python Developer", company: "Northstar Systems", location: "Remote — Worldwide", remote: true, skills: ["Python", "SQL", "Git"], level: "entry", description: "Support backend services, write Python code, and work with relational databases.", url: "https://example.com/jobs/demo-1" },
@@ -11,6 +12,7 @@ const sampleJobs: Job[] = [
 
 export default function HomePage() {
   const [cvName, setCvName] = useState("");
+  const [candidateName, setCandidateName] = useState("");
   const [skillsText, setSkillsText] = useState("Python, SQL, Git");
   const [rolesText, setRolesText] = useState("Junior Python Developer, Python Developer");
   const [level, setLevel] = useState<CandidateProfile["level"]>("entry");
@@ -23,11 +25,13 @@ export default function HomePage() {
   const [isSearching, setIsSearching] = useState(false);
   const [liveError, setLiveError] = useState("");
   const [liveFetchedAt, setLiveFetchedAt] = useState("");
+  const [draftForJob, setDraftForJob] = useState<Job | null>(null);
+  const [draftText, setDraftText] = useState("");
 
   function saveProfileSettings() {
     try {
-      const settings = { schemaVersion: 1, skillsText, rolesText, level, remoteOnly, minimumScore };
-      window.localStorage.setItem("job-agent.profile.v1", JSON.stringify(settings));
+      const settings = { schemaVersion: 2, candidateName, skillsText, rolesText, level, remoteOnly, minimumScore };
+      window.localStorage.setItem("job-agent.profile.v2", JSON.stringify(settings));
       setNotice("Profile preferences saved in this browser. Your CV file was not uploaded or saved.");
     } catch {
       setNotice("The browser could not save these settings. Check local storage availability.");
@@ -36,7 +40,7 @@ export default function HomePage() {
 
   function loadProfileSettings() {
     try {
-      const raw = window.localStorage.getItem("job-agent.profile.v1");
+      const raw = window.localStorage.getItem("job-agent.profile.v2") ?? window.localStorage.getItem("job-agent.profile.v1");
       if (!raw) {
         setNotice("No saved profile was found in this browser yet.");
         return;
@@ -50,7 +54,7 @@ export default function HomePage() {
         && settings.minimumScore <= 95
         && settings.minimumScore % 5 === 0;
       if (
-        settings.schemaVersion !== 1
+        (settings.schemaVersion !== 1 && settings.schemaVersion !== 2)
         || typeof settings.skillsText !== "string"
         || typeof settings.rolesText !== "string"
         || !validLevel
@@ -59,6 +63,7 @@ export default function HomePage() {
       ) {
         throw new Error("Invalid settings");
       }
+      setCandidateName(typeof settings.candidateName === "string" ? settings.candidateName : "");
       setSkillsText(settings.skillsText);
       setRolesText(settings.rolesText);
       setLevel(settings.level as CandidateProfile["level"]);
@@ -134,6 +139,28 @@ export default function HomePage() {
     setNotice("Selected locally only. The file has not been uploaded or parsed.");
   }
 
+  function createCoverLetterDraft(job: Job) {
+    setDraftForJob(job);
+    setDraftText(buildCoverLetterDraft({
+      candidateName,
+      targetRoles: candidate.targetRoles,
+      skills: candidate.skills,
+      jobSkills: job.skills,
+      jobTitle: job.title,
+      company: job.company
+    }));
+    setNotice("A cover letter template was created locally. Review every line before using it; nothing was sent.");
+  }
+
+  async function copyCoverLetterDraft() {
+    try {
+      await navigator.clipboard.writeText(draftText);
+      setNotice("Cover letter draft copied to your clipboard. It has not been sent.");
+    } catch {
+      setNotice("Clipboard access is unavailable. Select the draft text and copy it manually.");
+    }
+  }
+
   return <main className="shell">
     <header className="topbar">
       <a className="brand" href="#"><span className="brand-mark">J</span> Job Agent</a>
@@ -169,6 +196,8 @@ export default function HomePage() {
           <small>PDF, DOCX, or TXT · max 10 MB</small>
           <small className="muted">Local selection only; no upload or parsing</small>
         </label>
+        <label className="field-label" htmlFor="candidate-name">Name for application drafts (optional)</label>
+        <input id="candidate-name" value={candidateName} onChange={e => setCandidateName(e.target.value)} maxLength={80} placeholder="Your name"/>
         <label className="field-label" htmlFor="roles">Target roles</label>
         <input id="roles" value={rolesText} onChange={e => setRolesText(e.target.value)} placeholder="Python Developer, QA Engineer"/>
         <label className="field-label" htmlFor="skills">Skills (comma-separated)</label>
@@ -230,9 +259,26 @@ export default function HomePage() {
           </details>
           <div className="job-card-bottom">
             <span className={job.remote ? "remote-tag" : "onsite-tag"}>{job.remote ? "REMOTE" : "ON-SITE / HYBRID"}</span>
-            <a href={job.url} target="_blank" rel="noreferrer">{job.source === "Remotive" ? "View on Remotive ↗" : "Example listing ↗"}</a>
+            <div className="job-card-actions">
+              <button className="secondary-button draft-trigger" type="button" onClick={() => createCoverLetterDraft(job)}>Draft cover letter</button>
+              <a href={job.url} target="_blank" rel="noreferrer">{job.source === "Remotive" ? "View on Remotive ↗" : "Example listing ↗"}</a>
+            </div>
           </div>
         </article>)}
+        {draftForJob && <section className="panel draft-panel" aria-label="Cover letter draft editor">
+          <div className="section-heading">
+            <div><p className="eyebrow">03 / APPLICATION PREPARATION</p><h2>Cover letter draft</h2></div>
+            <button className="secondary-button draft-close" type="button" onClick={() => { setDraftForJob(null); setDraftText(""); }}>Close</button>
+          </div>
+          <p className="draft-help">Template for {draftForJob.title} at {draftForJob.company}. It uses only your entered name, target roles, and skills. It does not claim experience, credentials, or achievements you have not supplied.</p>
+          <label className="field-label" htmlFor="cover-letter-text">Editable draft</label>
+          <textarea id="cover-letter-text" rows={13} value={draftText} onChange={e => setDraftText(e.target.value)} />
+          <div className="draft-actions">
+            <button className="primary-button" type="button" onClick={copyCoverLetterDraft}>Copy draft</button>
+            <button className="secondary-button" type="button" onClick={() => setDraftText(buildCoverLetterDraft({ candidateName, targetRoles: candidate.targetRoles, skills: candidate.skills, jobSkills: draftForJob.skills, jobTitle: draftForJob.title, company: draftForJob.company }))}>Regenerate from profile</button>
+          </div>
+          <p className="source-disclaimer">Review and personalize the text before using it. Copying is the only export action; this app cannot send applications or emails.</p>
+        </section>}
         <div className="next-step">
           <span className="next-step-icon">↗</span>
           <div><strong>Next: secure application preparation</strong><p>Live discovery is read-only. CV parsing, tailoring, persistence, Gmail, and any submission workflow remain disconnected pending a safe implementation and your explicit setup.</p></div>
