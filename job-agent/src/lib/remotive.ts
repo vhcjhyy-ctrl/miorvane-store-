@@ -14,8 +14,8 @@ function isRecord(value: unknown): value is UnknownRecord {
 function plainText(value: unknown): string {
   if (typeof value !== "string") return "";
   return value
-    .replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/gi, " ")
-    .replace(/<style\\b[^>]*>[\\s\\S]*?<\\/style>/gi, " ")
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;|&#160;/gi, " ")
     .replace(/&amp;/gi, "&")
@@ -24,7 +24,7 @@ function plainText(value: unknown): string {
     .replace(/&quot;|&#34;/gi, '"')
     .replace(/&#39;|&apos;/gi, "'")
     .replace(/&#x27;/gi, "'")
-    .replace(/\\s+/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -46,7 +46,7 @@ const knownSkills = [
 function extractKnownSkills(sourceText: string): string[] {
   const found: string[] = [];
   for (const skill of knownSkills) {
-    const escaped = skill.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&");
+    const escaped = skill.replace(/[.*+?^$()|[\]\\]/g, "\\$&");
     const pattern = new RegExp("(^|[^a-z0-9])" + escaped + "(?=$|[^a-z0-9])", "i");
     if (pattern.test(sourceText)) found.push(skill);
   }
@@ -55,8 +55,8 @@ function extractKnownSkills(sourceText: string): string[] {
 
 function inferLevel(title: string): ExperienceLevel | undefined {
   const lower = title.toLowerCase();
-  if (/\\b(intern|internship|junior|jr\\.?|entry[- ]level|graduate)\\b/.test(lower)) return "entry";
-  if (/\\b(senior|sr\\.?|lead|principal|staff|head of)\\b/.test(lower)) return "senior";
+  if (/\b(intern|internship|junior|jr\.?|entry[- ]level|graduate)\b/.test(lower)) return "entry";
+  if (/\b(senior|sr\.?|lead|principal|staff|head of)\b/.test(lower)) return "senior";
   return undefined;
 }
 
@@ -111,7 +111,7 @@ function parseRemotiveJob(value: unknown): ParsedRemotiveJob | null {
 /** Map untrusted public feed data to safe, normalized listings and apply a local keyword filter. */
 export function filterRemotiveJobs(records: unknown[], query: string, requestedLimit: number): Job[] {
   const limit = Number.isFinite(requestedLimit) ? Math.min(50, Math.max(1, Math.floor(requestedLimit))) : 25;
-  const terms = query.trim().slice(0, 80).toLowerCase().split(/\\s+/).filter(Boolean);
+  const terms = query.trim().slice(0, 80).toLowerCase().split(/\s+/).filter(Boolean);
 
   return records
     .map(parseRemotiveJob)
