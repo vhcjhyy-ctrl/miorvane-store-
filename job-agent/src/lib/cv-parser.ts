@@ -95,8 +95,7 @@ export async function extractResumeText(file: ResumeFileLike): Promise<ResumeExt
 
   const pdfjs = await import("pdfjs-dist/webpack.mjs");
   const loadingTask = pdfjs.getDocument({
-    data: new Uint8Array(await file.arrayBuffer()),
-    isEvalSupported: false
+    data: new Uint8Array(await file.arrayBuffer())
   });
   const document = await loadingTask.promise;
 
