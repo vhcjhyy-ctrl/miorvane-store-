@@ -3,6 +3,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { explainJobMatch, type CandidateProfile, type Job } from "@/lib/scoring";
 import { buildCoverLetterDraft } from "@/lib/application-draft";
+import { readShortlist, toggleShortlist } from "@/lib/shortlist";
 
 const sampleJobs: Job[] = [
   { id: "demo-1", title: "Junior Python Developer", company: "Northstar Systems", location: "Remote — Worldwide", remote: true, skills: ["Python", "SQL", "Git"], level: "entry", description: "Support backend services, write Python code, and work with relational databases.", url: "https://example.com/jobs/demo-1" },
@@ -25,6 +26,8 @@ export default function HomePage() {
   const [isSearching, setIsSearching] = useState(false);
   const [liveError, setLiveError] = useState("");
   const [liveFetchedAt, setLiveFetchedAt] = useState("");
+  const [savedJobs, setSavedJobs] = useState<Job[]>([]);
+  const [showSavedJobs, setShowSavedJobs] = useState(false);
   const [draftForJob, setDraftForJob] = useState<Job | null>(null);
   const [draftText, setDraftText] = useState("");
 
@@ -82,7 +85,7 @@ export default function HomePage() {
     remoteOnly
   }), [skillsText, rolesText, level, remoteOnly]);
 
-  const activeJobs = showLiveJobs ? liveJobs : sampleJobs;
+  const activeJobs = showSavedJobs ? savedJobs : showLiveJobs ? liveJobs : sampleJobs;
   const matches = useMemo(() => activeJobs
     .filter(job => !candidate.remoteOnly || job.remote)
     .map(job => ({ job, explanation: explainJobMatch(candidate, job) }))
@@ -113,6 +116,7 @@ export default function HomePage() {
         throw new Error("The job source returned an unexpected response.");
       }
       setLiveJobs(payload.jobs as Job[]);
+      setShowSavedJobs(false);
       setShowLiveJobs(true);
       setLiveFetchedAt(new Date().toISOString());
       setNotice("");
@@ -137,6 +141,37 @@ export default function HomePage() {
     }
     setCvName(file.name);
     setNotice("Selected locally only. The file has not been uploaded or parsed.");
+  }
+
+  function showDemoJobs() {
+    setShowSavedJobs(false);
+    setShowLiveJobs(false);
+    setLiveError("");
+  }
+
+  function loadSavedJobs() {
+    try {
+      const jobs = readShortlist(window.localStorage.getItem("job-agent.shortlist.v1"));
+      setSavedJobs(jobs);
+      setShowSavedJobs(true);
+      setShowLiveJobs(false);
+      setLiveError("");
+      setNotice(jobs.length ? "Loaded " + jobs.length + " saved roles from this browser." : "No saved roles yet. Use Save role on a listing to add one.");
+    } catch {
+      setNotice("The browser could not access local storage. Saved roles are unavailable.");
+    }
+  }
+
+  function toggleSavedJob(job: Job) {
+    const wasSaved = savedJobs.some(item => item.id === job.id);
+    const updated = toggleShortlist(savedJobs, job);
+    setSavedJobs(updated);
+    try {
+      window.localStorage.setItem("job-agent.shortlist.v1", JSON.stringify(updated));
+      setNotice(wasSaved ? "Role removed from your browser-local shortlist." : "Role saved in your browser-local shortlist.");
+    } catch {
+      setNotice("The shortlist changed for this session, but the browser could not persist it.");
+    }
   }
 
   function createCoverLetterDraft(job: Job) {
@@ -174,13 +209,15 @@ export default function HomePage() {
       </div>
       <div className="hero-stat">
         <span className="stat-number">{String(matches.length).padStart(2, "0")}</span>
-        <span className="stat-label">{showLiveJobs ? "live matches" : "sample matches"}</span>
+        <span className="stat-label">{showSavedJobs ? "saved matches" : showLiveJobs ? "live matches" : "sample matches"}</span>
       </div>
     </section>
 
-    {showLiveJobs
-      ? <div className="notice"><strong>Live-source mode:</strong> listings are retrieved from Remotive and cached server-side for up to six hours. The source may delay listings by up to 24 hours. Matching is heuristic; always review the original listing.</div>
-      : <div className="notice"><strong>Demo mode:</strong> sample listings are examples. Use the live search below to query the public Remotive feed. No application is submitted and no email is sent.</div>}
+    {showSavedJobs
+      ? <div className="notice"><strong>Saved roles:</strong> these records are stored only in this browser. Nothing is uploaded or submitted.</div>
+      : showLiveJobs
+        ? <div className="notice"><strong>Live-source mode:</strong> listings are retrieved from Remotive and cached server-side for up to six hours. The source may delay listings by up to 24 hours. Matching is heuristic; always review the original listing.</div>
+        : <div className="notice"><strong>Demo mode:</strong> sample listings are examples. Use the live search below to query the public Remotive feed. No application is submitted and no email is sent.</div>}
     {notice && <p className="inline-notice" role="status">{notice}</p>}
 
     <div className="layout">
@@ -227,15 +264,18 @@ export default function HomePage() {
             <div className="live-search-controls">
               <input id="live-query" value={liveQuery} onChange={e => setLiveQuery(e.target.value)} maxLength={80} placeholder="Python developer, data analyst, cybersecurity"/>
               <button className="primary-button live-submit" type="submit" disabled={isSearching}>{isSearching ? "Searching…" : "Search live jobs"}</button>
-              <button className="secondary-button" type="button" onClick={() => { setShowLiveJobs(false); setLiveError(""); }}>Show demo data</button>
             </div>
             <p className="source-disclaimer">Source: <a href="https://remotive.com/remote-jobs/api" target="_blank" rel="noreferrer">Remotive public API</a>. Results are cached up to six hours; the source recommends no more than four upstream requests per day. Links credit and lead back to Remotive.</p>
           </form>
+          <div className="source-mode-actions">
+            <button className="secondary-button" type="button" onClick={loadSavedJobs}>Saved roles ({savedJobs.length})</button>
+            <button className="secondary-button" type="button" onClick={showDemoJobs}>Show demo data</button>
+          </div>
           {liveError && <p className="inline-error" role="alert">{liveError}</p>}
           {showLiveJobs && liveFetchedAt && <p className="retrieved-note">Fetched by this session: {new Date(liveFetchedAt).toLocaleString()} · source data may be cached.</p>}
         </div>
-        <p className="subheading">{showLiveJobs ? "Live-source results ranked against your current candidate profile." : "Sample listings scored against your current profile."}</p>
-        {matches.length === 0 && <div className="empty-state">{showLiveJobs && isSearching ? "Searching for matching roles…" : showLiveJobs ? "No live listings meet this search and score threshold. Try another keyword or lower the threshold." : "No sample jobs meet this score and preference combination. Lower the threshold or change your profile."}</div>}
+        <p className="subheading">{showSavedJobs ? "Your browser-local shortlist ranked against your current candidate profile." : showLiveJobs ? "Live-source results ranked against your current candidate profile." : "Sample listings scored against your current profile."}</p>
+        {matches.length === 0 && <div className="empty-state">{showSavedJobs ? (savedJobs.length === 0 ? "No roles saved yet. Switch to live or demo listings and choose Save role." : "No saved roles meet your current score threshold. Lower the threshold or change your profile.") : showLiveJobs && isSearching ? "Searching for matching roles…" : showLiveJobs ? "No live listings meet this search and score threshold. Try another keyword or lower the threshold." : "No sample jobs meet this score and preference combination. Lower the threshold or change your profile."}</div>}
         {matches.map(({job, explanation}) => <article className="job-card" key={job.id}>
           <div className="job-card-top">
             <div className="company-avatar">{job.company.slice(0, 1) || "J"}</div>
@@ -260,6 +300,7 @@ export default function HomePage() {
           <div className="job-card-bottom">
             <span className={job.remote ? "remote-tag" : "onsite-tag"}>{job.remote ? "REMOTE" : "ON-SITE / HYBRID"}</span>
             <div className="job-card-actions">
+              <button className="secondary-button save-role-button" type="button" onClick={() => toggleSavedJob(job)}>{savedJobs.some(item => item.id === job.id) ? "Remove saved" : "Save role"}</button>
               <button className="secondary-button draft-trigger" type="button" onClick={() => createCoverLetterDraft(job)}>Draft cover letter</button>
               <a href={job.url} target="_blank" rel="noreferrer">{job.source === "Remotive" ? "View on Remotive ↗" : "Example listing ↗"}</a>
             </div>
