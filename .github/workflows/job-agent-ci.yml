@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - "feature/ai-job-agent-phase1"
     paths:
       - "job-agent/**"
       - ".github/workflows/job-agent-ci.yml"
