@@ -30,13 +30,14 @@ export function mergeJobSources(remotive: Job[], arbeitnow: Job[], requestedLimi
       arbeitnowIndex += 1;
     }
 
-    nextProvider = nextProvider === "remotive" ? "arbeitnow" : "remotive";
     if (!candidate) continue;
 
     const key = keyFor(candidate);
     if (seen.has(key)) continue;
     seen.add(key);
     merged.push(candidate);
+    // Alternate only after accepting a unique result, so duplicates don't skew source balance.
+    nextProvider = nextProvider === "remotive" ? "arbeitnow" : "remotive";
   }
 
   return merged;

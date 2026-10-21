@@ -20,6 +20,7 @@ const sampleJobs: Job[] = [
 
 export default function HomePage() {
   const [cvName, setCvName] = useState("");
+  const [cvInputKey, setCvInputKey] = useState(0);
   const [resumeText, setResumeText] = useState("");
   const [resumeInfo, setResumeInfo] = useState("");
   const [isParsingResume, setIsParsingResume] = useState(false);
@@ -82,6 +83,7 @@ export default function HomePage() {
       setSalaryOnlyFilter(false);
       setSortMode("match");
       setCvName("");
+      setCvInputKey(current => current + 1);
       setResumeText("");
       setResumeInfo("");
       setIsParsingResume(false);
@@ -512,7 +514,7 @@ export default function HomePage() {
           <span className="step-icon">CV</span>
         </div>
         <label className="upload-box">
-          <input type="file" accept=".pdf,.docx,.txt" disabled={isParsingResume} onChange={e => { void selectCv(e.target.files?.[0]); }}/>
+          <input key={cvInputKey} type="file" accept=".pdf,.docx,.txt" disabled={isParsingResume} onChange={e => { void selectCv(e.target.files?.[0]); }}/>
           <span className="upload-icon">↑</span>
           <strong>{cvName || "Choose your CV"}</strong>
           <small>PDF, DOCX, or TXT · max 10 MB</small>

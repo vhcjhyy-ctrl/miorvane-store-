@@ -40,7 +40,7 @@ Open http://localhost:3000.
 ## Next steps
 1. Create a Supabase project and review/apply `supabase/migrations/0001_initial_schema.sql`.
 2. Add candidate-confirmed resume section parsing, and only consider OCR or cloud storage with separate consent and privacy controls.
-3. Review Remotive's current API terms and add other authorized job source adapters with their own attribution and rate limits.
+3. Review both active providers' current API terms and rate limits before adding additional authorized sources.
 4. Add account-backed application history, duplicate prevention, and explicit user review before any submission.
 5. Configure an authenticated deployment and shared rate limiter before enabling the optional AI route.
 6. Configure Gmail OAuth with least-privilege scopes and server-side token storage.
