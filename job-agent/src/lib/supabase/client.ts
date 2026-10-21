@@ -1,8 +1,12 @@
 import { createBrowserClient } from "@supabase/ssr";
+import { resolveSupabasePublicConfig } from "./config";
 
 export function createBrowserSupabaseClient() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim();
-  if (!url || !anonKey) return null;
-  return createBrowserClient(url, anonKey);
+  const config = resolveSupabasePublicConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  );
+  if (!config) return null;
+  return createBrowserClient(config.url, config.key);
 }
