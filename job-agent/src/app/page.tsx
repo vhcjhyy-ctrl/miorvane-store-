@@ -482,13 +482,13 @@ export default function HomePage() {
   return <main className="shell">
     <header className="topbar">
       <a className="brand" href="#"><span className="brand-mark">J</span> Job Agent</a>
-      <span className="phase-pill">PHASE 11 · PRIVACY CONTROLS</span>
+      <span className="phase-pill">PHASE 12 · MULTI-SOURCE SEARCH</span>
     </header>
     <section className="hero">
       <div>
         <p className="eyebrow">YOUR PERSONAL JOB WORKSPACE</p>
         <h1>Find work that fits.<br/><span>Apply with intent.</span></h1>
-        <p className="hero-copy">Search public remote listings, compare them against your profile, and see why each role may fit.</p>
+        <p className="hero-copy">Search jobs from two public sources, compare them against your profile, and see why each role may fit.</p>
       </div>
       <div className="hero-stat">
         <span className="stat-number">{String(matches.length).padStart(2, "0")}</span>
