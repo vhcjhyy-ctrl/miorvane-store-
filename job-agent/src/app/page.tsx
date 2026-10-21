@@ -374,7 +374,8 @@ export default function HomePage() {
       const payload: unknown = await response.json().catch(() => null);
       if (!response.ok) throw new Error(getCloudApiError(payload, "Could not load the cloud workspace."));
       if (typeof payload !== "object" || payload === null || !("version" in payload)
-        || typeof payload.version !== "number" || !("workspace" in payload)) {
+        || typeof payload.version !== "number" || !("workspace" in payload)
+        || !("updatedAt" in payload) || (payload.updatedAt !== null && typeof payload.updatedAt !== "string")) {
         throw new Error("The cloud service returned an unexpected response.");
       }
 
