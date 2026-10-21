@@ -52,3 +52,30 @@ jobs:
 
       - name: Build Docker production image
         run: docker build --tag job-agent:ci .
+
+      - name: Validate Docker Compose configuration
+        run: docker compose config --quiet
+
+      - name: Smoke-test production container
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --detach --rm --name job-agent-ci \
+            --publish 127.0.0.1:3300:3000 \
+            --env AI_COVER_LETTER_ENABLED=false \
+            --env OPENAI_MODEL= \
+            job-agent:ci
+          cleanup() {
+            docker logs job-agent-ci || true
+            docker stop job-agent-ci >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3300/api/health; then
+              echo "Production container health endpoint responded successfully."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Container failed to become healthy within 60 seconds."
+          exit 1

@@ -20,7 +20,7 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Bilingual Arabic/English cover-letter templates and optional OpenAI Responses API drafts, disabled by default and guarded by explicit consent
 - Streaming request-body size limit and UTF-8 validation for the optional AI endpoint, with targeted tests
 - Vitest suites for scoring, result filters/sorting, multi-source merge/deduplication, live job API route integration, bounded request-body parsing, backup validation/round-trip, application dashboard summaries/status filtering, app-local data cleanup, saved-search validation/upsert/removal, Remotive and Arbeitnow normalization, browser-local shortlist, application tracking, CSV export, English/Arabic cover-letter drafts, and local CV extraction
-- GitHub Actions runs ESLint, unit tests, a production build, and a Docker image build on changes; provider-route integration tests cover partial outages, malformed feeds, source selection, and result limits
+- GitHub Actions runs ESLint, unit tests, a production build, Docker image build, Compose configuration validation, and a real container health smoke test; provider-route integration tests cover partial outages, malformed feeds, source selection, and result limits
 - Multi-stage Docker image, loopback-only Docker Compose port by default, and a secret-free health endpoint
 - Supabase migration draft now enables RLS on job sources and jobs, exposing only active, unexpired jobs to authenticated users
 - Initial Supabase SQL schema and RLS policies
@@ -54,7 +54,7 @@ docker compose logs -f job-agent
 
 The service binds to `127.0.0.1:3000` by default. Change `JOB_AGENT_PORT` to use another local port. The container uses a multi-stage production build and runs as an unprivileged user. The `/api/health` endpoint is intended for container health checks and does not reveal runtime secrets.
 
-AI generation remains disabled unless explicitly enabled at runtime. Do not enable it on a public deployment until authentication and a shared rate limiter are configured. Supply secrets through the runtime environment or an approved secret manager; do not bake `.env` files or keys into the image.
+AI generation remains disabled unless explicitly enabled at runtime. Do not enable it on a public deployment until authentication and a shared rate limiter are configured. The Compose file does not supply a default model; set `OPENAI_MODEL` explicitly if you later enable the route. Supply secrets through the runtime environment or an approved secret manager; do not bake `.env` files or keys into the image.
 
 ## Next steps
 1. Create a Supabase project and review/apply `supabase/migrations/0001_initial_schema.sql`.

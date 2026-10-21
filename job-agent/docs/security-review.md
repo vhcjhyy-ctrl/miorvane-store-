@@ -12,7 +12,7 @@ This document records implemented controls and the remaining launch blockers. It
 - AI cover-letter generation requires the owner-controlled `AI_COVER_LETTER_ENABLED=true`, a server-side `OPENAI_API_KEY`, and a client consent flag that is validated again on the server.
 - The optional AI route forwards only a validated allowlist of candidate-entered fields and selected job details, supports Arabic or English output, with the selected language included in the explicitly consented request, uses `store: false`, and has a streaming request-body byte ceiling before buffering the full payload.
 - CSV export quotes cells and neutralizes spreadsheet formula prefixes.
-- ESLint, Vitest, and a production Next.js build run in GitHub Actions.
+- ESLint, Vitest, production Next.js build, Docker image build, Compose validation, and a production-container health smoke test run in GitHub Actions.
 
 ## Required before public launch
 
@@ -20,7 +20,7 @@ This document records implemented controls and the remaining launch blockers. It
 2. Replace the in-memory per-process AI request counter with a shared, durable rate limiter and abuse monitoring.
 3. Create a Supabase project, review the migration in a test project, verify all row-level security policies with separate user accounts, and run negative access tests. No migration is applied by this repository.
 4. Add account-backed data export/deletion policies, retention rules, and privacy notices for any server-stored data.
-5. Add a real secret manager and deployment-specific environment configuration. Never expose the OpenAI key or Supabase service-role key through a `NEXT_PUBLIC_*` variable.
+5. Add a real secret manager and deployment-specific environment configuration. Set `OPENAI_MODEL` explicitly if AI is intentionally enabled. Never expose the OpenAI key or Supabase service-role key through a `NEXT_PUBLIC_*` variable.
 6. Verify each job provider's current API terms, cache guidance, and attribution requirements before increasing request frequency or adding providers.
 7. Keep applications and email sending disabled until Gmail OAuth least-privilege scopes, user review/approval, duplicate prevention, and delivery/audit logs are implemented and tested.
 
