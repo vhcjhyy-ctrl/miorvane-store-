@@ -5,7 +5,7 @@ A starter workspace for a personal AI job application agent. This folder is inte
 ## Current phase
 - Next.js + TypeScript dashboard
 - Candidate preferences form with explicit browser-local save/load (no cloud upload)
-- Privacy control to clear only Job Agent-owned local storage keys, with confirmation and tests
+- Privacy control to clear only Job Agent-owned local storage keys, including saved searches, with confirmation and tests
 - Browser-local saved job searches with one-click rerun by source; searches do not run automatically
 - Versioned JSON backup/restore for the profile, saved searches, shortlist and application tracker, with full validation, a 2 MB cap and restore confirmation; CV bytes/text excluded
 - Browser-local text extraction for PDF, DOCX, and TXT, with size/page/character limits and reviewable skill suggestions

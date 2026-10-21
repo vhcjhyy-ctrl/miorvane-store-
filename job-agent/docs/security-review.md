@@ -7,7 +7,7 @@ This document records implemented controls and the remaining launch blockers. It
 ## Implemented controls
 
 - The public job feed is read-only. Listing text is treated as untrusted input, HTML is stripped before use, and provider URLs are constrained to expected HTTPS hosts and paths.
-- Candidate profile data, shortlist entries, application notes, and application statuses are stored in browser local storage. The privacy control removes only the Job Agent-owned versioned keys after confirmation; previously exported CSV files are not erased.
+- Candidate profile data, saved search queries, shortlist entries, application notes, and application statuses are stored in browser local storage. Saved searches can be rerun manually, are included in versioned JSON backups, and never run automatically. The privacy control removes only the Job Agent-owned versioned keys after confirmation; previously exported CSV files are not erased.
 - CV files and extracted CV text are processed in the browser and are not uploaded or included in the optional AI payload.
 - AI cover-letter generation requires the owner-controlled `AI_COVER_LETTER_ENABLED=true`, a server-side `OPENAI_API_KEY`, and a client consent flag that is validated again on the server.
 - The optional AI route forwards only a validated allowlist of candidate-entered fields and selected job details, supports Arabic or English output, with the selected language included in the explicitly consented request, uses `store: false`, and has a streaming request-body byte ceiling before buffering the full payload.

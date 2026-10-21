@@ -212,7 +212,7 @@ export default function HomePage() {
       setBackupFile(null);
       setBackupError("");
       setBackupInputKey(current => current + 1);
-      setNotice("Job Agent profile, saved roles, and application history cleared from this browser. Previously exported files and server-side records, if any, are not affected.");
+      setNotice("Job Agent profile, saved searches, saved roles, and application history cleared from this browser. Previously exported files and server-side records, if any, are not affected.");
     } catch {
       setNotice("Could not clear the app's local data. Browser storage may be restricted; review this browser's site data settings.");
     }

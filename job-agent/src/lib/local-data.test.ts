@@ -18,7 +18,8 @@ function createMemoryStorage(initial: Record<string, string>) {
 }
 
 describe("Job Agent local data cleanup", () => {
-  it("removes the app's supported versioned keys", () => {
+  it("removes the app's supported versioned keys including saved searches", () => {
+    expect(JOB_AGENT_LOCAL_STORAGE_KEYS).toContain("job-agent.saved-searches.v1");
     const initial = Object.fromEntries(JOB_AGENT_LOCAL_STORAGE_KEYS.map(key => [key, "private-data"]));
     const memory = createMemoryStorage(initial);
     clearJobAgentLocalData(memory.storage);

@@ -20,7 +20,7 @@ describe("browser-local saved job searches", () => {
     const saved = readSavedJobSearches(JSON.stringify([
       makeSearch("s1", "Python   developer", "all", "Python jobs", "2026-10-21T10:00:00Z")
     ]));
-    expect(saved).toEqual([makeSearch("s1", "Python   developer", "all", "Python jobs")]);
+    expect(saved).toEqual([makeSearch("s1", "Python developer", "all", "Python jobs")]);
   });
 
   it("rejects malformed storage, unsupported sources, invalid dates, and overlong fields", () => {
