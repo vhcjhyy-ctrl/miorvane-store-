@@ -10,6 +10,7 @@ import { applicationTrackerToCsv } from "@/lib/application-export";
 import { extractResumeText } from "@/lib/cv-parser";
 import { extractKnownSkills } from "@/lib/remotive";
 import { filterAndSortMatches, type JobAgeFilter, type JobSortMode } from "@/lib/job-results";
+import { clearJobAgentLocalData } from "@/lib/local-data";
 
 const sampleJobs: Job[] = [
   { id: "demo-1", title: "Junior Python Developer", company: "Northstar Systems", location: "Remote — Worldwide", remote: true, skills: ["Python", "SQL", "Git"], level: "entry", description: "Support backend services, write Python code, and work with relational databases.", url: "https://example.com/jobs/demo-1" },
@@ -59,6 +60,48 @@ export default function HomePage() {
       // Storage may be disabled; individual save/load actions show user-facing errors.
     }
   }, []);
+
+  function clearAllLocalJobAgentData() {
+    if (!window.confirm("Clear this browser's saved Job Agent profile, shortlist, and application history? This cannot be undone.")) {
+      return;
+    }
+
+    try {
+      clearJobAgentLocalData(window.localStorage);
+      setCandidateName("");
+      setSkillsText("");
+      setRolesText("");
+      setLevel("entry");
+      setRemoteOnly(true);
+      setMinimumScore(60);
+      setJobCategoryFilter("all");
+      setJobTypeFilter("all");
+      setPostedWithinFilter("any");
+      setSalaryOnlyFilter(false);
+      setSortMode("match");
+      setCvName("");
+      setResumeText("");
+      setResumeInfo("");
+      setIsParsingResume(false);
+      setSavedJobs([]);
+      setTrackedApplications([]);
+      setShowSavedJobs(false);
+      setShowApplications(false);
+      setApplicationStatusFilter("all");
+      setLiveJobs([]);
+      setShowLiveJobs(false);
+      setLiveError("");
+      setLiveFetchedAt("");
+      setDraftForJob(null);
+      setDraftText("");
+      setAiConsent(false);
+      setIsAiDrafting(false);
+      setAiDraftError("");
+      setNotice("Job Agent profile, saved roles, and application history cleared from this browser. Previously exported files and server-side records, if any, are not affected.");
+    } catch {
+      setNotice("Could not clear the app's local data. Browser storage may be restricted; review this browser's site data settings.");
+    }
+  }
 
   function saveProfileSettings() {
     try {
@@ -431,7 +474,7 @@ export default function HomePage() {
   return <main className="shell">
     <header className="topbar">
       <a className="brand" href="#"><span className="brand-mark">J</span> Job Agent</a>
-      <span className="phase-pill">PHASE 10 · APPLICATION DASHBOARD</span>
+      <span className="phase-pill">PHASE 11 · PRIVACY CONTROLS</span>
     </header>
     <section className="hero">
       <div>
@@ -497,6 +540,11 @@ export default function HomePage() {
         <input id="score" className="range" type="range" min={30} max={95} step={5} value={minimumScore} onChange={e => setMinimumScore(Number(e.target.value))}/>
         <button className="primary-button" onClick={saveProfileSettings}>Save profile settings</button>
         <button className="secondary-button" onClick={loadProfileSettings}>Load saved profile</button>
+        <div className="privacy-controls">
+          <p>Privacy controls</p>
+          <small>Clear this app’s browser-local profile, saved roles, and application history. A confirmation is required.</small>
+          <button className="danger-button" type="button" onClick={clearAllLocalJobAgentData}>Clear my local Job Agent data</button>
+        </div>
       </aside>
 
       <section className="results">

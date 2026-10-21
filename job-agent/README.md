@@ -1,10 +1,11 @@
-# Job Agent — Phase 10
+# Job Agent — Phase 11
 
 A starter workspace for a personal AI job application agent. This folder is intentionally isolated from the existing store project.
 
 ## Current phase
 - Next.js + TypeScript dashboard
 - Candidate preferences form with explicit browser-local save/load (no cloud upload)
+- Privacy control to clear only Job Agent-owned local storage keys, with confirmation and tests
 - Browser-local text extraction for PDF, DOCX, and TXT, with size/page/character limits and reviewable skill suggestions
 - Live remote-job search through the public Remotive feed, plus local sample listings
 - Client-side category, employment type, publication-age and salary-availability filters, plus match/newest/company sorting
@@ -15,13 +16,13 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Private application notes and date-based follow-up indicators, included in CSV backups
 - Export tracked applications as CSV with spreadsheet-formula injection protection
 - Editable local cover-letter template plus optional OpenAI Responses API draft, disabled by default and guarded by explicit consent
-- Vitest suites for scoring, result filters/sorting, application dashboard summaries/status filtering, Remotive normalization, browser-local shortlist, application tracking, CSV export, cover-letter drafts, and local CV extraction
+- Vitest suites for scoring, result filters/sorting, application dashboard summaries/status filtering, app-local data cleanup, Remotive normalization, browser-local shortlist, application tracking, CSV export, cover-letter drafts, and local CV extraction
 - GitHub Actions runs ESLint, unit tests, and a production build on changes
 - Supabase migration draft now enables RLS on job sources and jobs, exposing only active, unexpired jobs to authenticated users
 - Initial Supabase SQL schema and RLS policies
 
 ## Not implemented yet
-Candidate preferences, shortlist, application statuses, notes, and follow-up dates are saved only in browser local storage. CV bytes and extracted CV text are processed in the current browser page and are not uploaded or saved. Live search is read-only and uses Remotive's public API. Upstream data is cached for six hours, listings link back to Remotive, and results may be delayed by 24 hours. The source recommends no more than four upstream requests per day. This is not a broad all-market search. The local cover letter is a deterministic template. An optional server-side OpenAI Responses API draft is available in code but disabled by default; it sends only the explicitly consented name, role/skill fields, and selected job details, never CV bytes or extracted CV text. All generated text must be reviewed before use. PDF/DOCX/TXT text extraction is local; scanned/image-only PDFs do not get OCR. Skill suggestions use a fixed list and need candidate confirmation. The Supabase SQL file is a reviewed draft only and has not been applied to a project; verify policies and run it in a test project first. Automated CV section/profile inference, OCR, Supabase connection, Gmail OAuth, email sending, and scheduled automation are not active. Configure `OPENAI_API_KEY` server-side and set `AI_COVER_LETTER_ENABLED=true` only after adding authentication and a shared rate limiter; the included per-process limit is best-effort and not production-grade. Demo data remains available.
+Candidate preferences, shortlist, application statuses, notes, and follow-up dates are saved only in browser local storage. The UI includes a confirmed cleanup action for the app-owned browser keys; it does not erase files exported earlier or data held by the hosting/provider logs. CV bytes and extracted CV text are processed in the current browser page and are not uploaded or saved. Live search is read-only and uses Remotive's public API. Upstream data is cached for six hours, listings link back to Remotive, and results may be delayed by 24 hours. The source recommends no more than four upstream requests per day. This is not a broad all-market search. The local cover letter is a deterministic template. An optional server-side OpenAI Responses API draft is available in code but disabled by default; it sends only the explicitly consented name, role/skill fields, and selected job details, never CV bytes or extracted CV text. All generated text must be reviewed before use. PDF/DOCX/TXT text extraction is local; scanned/image-only PDFs do not get OCR. Skill suggestions use a fixed list and need candidate confirmation. The Supabase SQL file is a reviewed draft only and has not been applied to a project; verify policies and run it in a test project first. Automated CV section/profile inference, OCR, Supabase connection, Gmail OAuth, email sending, and scheduled automation are not active. Configure `OPENAI_API_KEY` server-side and set `AI_COVER_LETTER_ENABLED=true` only after adding authentication and a shared rate limiter; the included per-process limit is best-effort and not production-grade. Demo data remains available.
 
 ## Run locally
 Requirements: Node.js 22.13+.
