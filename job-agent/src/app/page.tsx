@@ -83,6 +83,10 @@ export default function HomePage() {
         draftLanguage
       };
       const backup = createJobAgentBackup(profile, savedJobs, trackedApplications);
+      if (!parseJobAgentBackup(backup)) {
+        setBackupError("This profile or its saved records exceed backup limits or contain invalid data. Review profile lengths and remove invalid local records before exporting.");
+        return;
+      }
       const json = JSON.stringify(backup, null, 2);
       const blob = new Blob([json], { type: "application/json;charset=utf-8" });
       const objectUrl = URL.createObjectURL(blob);
@@ -234,8 +238,8 @@ export default function HomePage() {
       if (
         (settings.schemaVersion !== 1 && settings.schemaVersion !== 2 && settings.schemaVersion !== 3)
         || (settings.draftLanguage !== undefined && settings.draftLanguage !== "en" && settings.draftLanguage !== "ar")
-        || typeof settings.skillsText !== "string"
-        || typeof settings.rolesText !== "string"
+        || typeof settings.skillsText !== "string" || settings.skillsText.length > 3000
+        || typeof settings.rolesText !== "string" || settings.rolesText.length > 3000
         || !validLevel
         || typeof settings.remoteOnly !== "boolean"
         || !validScore
@@ -637,9 +641,9 @@ export default function HomePage() {
         <label className="field-label" htmlFor="candidate-name">Name for application drafts (optional)</label>
         <input id="candidate-name" value={candidateName} onChange={e => setCandidateName(e.target.value)} maxLength={80} placeholder="Your name"/>
         <label className="field-label" htmlFor="roles">Target roles</label>
-        <input id="roles" value={rolesText} onChange={e => setRolesText(e.target.value)} placeholder="Python Developer, QA Engineer"/>
+        <input id="roles" value={rolesText} onChange={e => setRolesText(e.target.value)} maxLength={3000} placeholder="Python Developer, QA Engineer"/>
         <label className="field-label" htmlFor="skills">Skills (comma-separated)</label>
-        <textarea id="skills" rows={3} value={skillsText} onChange={e => setSkillsText(e.target.value)} placeholder="Python, SQL, Git"/>
+        <textarea id="skills" rows={3} value={skillsText} onChange={e => setSkillsText(e.target.value)} maxLength={3000} placeholder="Python, SQL, Git"/>
         <label className="field-label" htmlFor="level">Experience level</label>
         <select id="level" value={level} onChange={e => setLevel(e.target.value as CandidateProfile["level"])}>
           <option value="entry">Entry level</option><option value="mid">Mid level</option><option value="senior">Senior</option>
