@@ -388,7 +388,7 @@ export default function HomePage() {
       if (typeof payload.updatedAt !== "string") {
         throw new Error("The cloud workspace timestamp is invalid. Local data was not changed.");
       }
-      if (!window.confirm("Load the cloud workspace and replace this browser&apos;s current profile, saved searches, saved roles, and application tracker? CV text is not part of cloud sync.")) {
+      if (!window.confirm("Load the cloud workspace and replace this browser's current profile, saved searches, saved roles, and application tracker? CV text is not part of cloud sync.")) {
         setCloudMessage("Cloud load cancelled. Current local data was left unchanged.");
         return;
       }
