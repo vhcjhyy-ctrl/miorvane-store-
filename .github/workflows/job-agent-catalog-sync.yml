@@ -1,0 +1,54 @@
+name: Job Agent Catalog Sync
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: job-agent-catalog-sync
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    name: Refresh public job catalog
+    runs-on: ubuntu-latest
+    steps:
+      - name: Skip safely until a deployed endpoint and cron secret are configured
+        id: configuration
+        env:
+          JOB_AGENT_BASE_URL: ${{ vars.JOB_AGENT_BASE_URL }}
+          JOB_SYNC_CRON_SECRET: ${{ secrets.JOB_SYNC_CRON_SECRET }}
+        shell: bash
+        run: |
+          if [[ -z "${JOB_AGENT_BASE_URL}" || -z "${JOB_SYNC_CRON_SECRET}" ]]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "Skipped: configure repository variable JOB_AGENT_BASE_URL and Actions secret JOB_SYNC_CRON_SECRET after deployment."
+            exit 0
+          fi
+          echo "configured=true" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger protected catalog ingestion
+        if: steps.configuration.outputs.configured == 'true'
+        env:
+          JOB_AGENT_BASE_URL: ${{ vars.JOB_AGENT_BASE_URL }}
+          JOB_SYNC_CRON_SECRET: ${{ secrets.JOB_SYNC_CRON_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          base="${JOB_AGENT_BASE_URL%/}"
+          code="$(curl --silent --show-error --max-time 60 --retry 2 --retry-delay 3 \
+            --output response.json --write-out '%{http_code}' \
+            --request POST \
+            --header "Authorization: Bearer ${JOB_SYNC_CRON_SECRET}" \
+            --header "Accept: application/json" \
+            "${base}/api/internal/jobs/sync")"
+          cat response.json
+          echo
+          if [[ "$code" != "200" && "$code" != "207" ]]; then
+            echo "Catalog ingestion returned HTTP $code."
+            exit 1
+          fi
