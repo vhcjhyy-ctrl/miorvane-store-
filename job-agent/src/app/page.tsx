@@ -387,7 +387,7 @@ export default function HomePage() {
       if (typeof payload.updatedAt !== "string") {
         throw new Error("The cloud workspace timestamp is invalid. Local data was not changed.");
       }
-      if (!window.confirm("Load the cloud workspace and replace this browser's current profile, saved searches, saved roles, and application tracker? CV text is not part of cloud sync.")) {
+      if (!window.confirm("Load the cloud workspace and replace this browser&apos;s current profile, saved searches, saved roles, and application tracker? CV text is not part of cloud sync.")) {
         setCloudMessage("Cloud load cancelled. Current local data was left unchanged.");
         return;
       }
@@ -943,7 +943,7 @@ export default function HomePage() {
             <strong>Account cloud workspace</strong>
             <span>{cloudWorkspaceVersion === null ? "Not checked" : "Version " + cloudWorkspaceVersion}</span>
           </div>
-          <small>Sign in and configure Supabase to sync this browser's profile, saved searches, saved roles, and tracker to your account. Sync is manual and version-checked. CV files and extracted CV text are never included. Apply migration 0002 first.</small>
+          <small>Sign in and configure Supabase to sync this browser&apos;s profile, saved searches, saved roles, and tracker to your account. Sync is manual and version-checked. CV files and extracted CV text are never included. Apply migration 0002 first.</small>
           <div className="cloud-workspace-actions">
             <button className="primary-button" type="button" onClick={() => { void syncWorkspaceToCloud(); }} disabled={isCloudBusy}>{isCloudBusy ? "Working…" : "Sync local workspace"}</button>
             <button className="secondary-button" type="button" onClick={() => { void loadWorkspaceFromCloud(); }} disabled={isCloudBusy}>{isCloudBusy ? "Working…" : "Load from cloud"}</button>
