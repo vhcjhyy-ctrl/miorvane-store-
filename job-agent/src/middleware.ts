@@ -2,6 +2,22 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { resolveSupabasePublicConfig } from "./lib/supabase/config";
 
+type SupabaseCookieOptions = {
+  domain?: string;
+  expires?: Date;
+  httpOnly?: boolean;
+  maxAge?: number;
+  path?: string;
+  sameSite?: boolean | "lax" | "strict" | "none";
+  secure?: boolean;
+};
+
+type SupabaseCookieUpdate = {
+  name: string;
+  value: string;
+  options: SupabaseCookieOptions;
+};
+
 export async function middleware(request: NextRequest) {
   const config = resolveSupabasePublicConfig(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -17,7 +33,7 @@ export async function middleware(request: NextRequest) {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet: SupabaseCookieUpdate[]) {
         for (const { name, value } of cookiesToSet) request.cookies.set(name, value);
         response = NextResponse.next({ request });
         for (const { name, value, options } of cookiesToSet) {
