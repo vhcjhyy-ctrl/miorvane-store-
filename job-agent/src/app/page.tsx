@@ -65,6 +65,10 @@ export default function HomePage() {
   const [backupError, setBackupError] = useState("");
   const [isRestoringBackup, setIsRestoringBackup] = useState(false);
   const [backupInputKey, setBackupInputKey] = useState(0);
+  const [cloudWorkspaceVersion, setCloudWorkspaceVersion] = useState<number | null>(null);
+  const [isCloudBusy, setIsCloudBusy] = useState(false);
+  const [cloudMessage, setCloudMessage] = useState("");
+  const [cloudError, setCloudError] = useState(false);
 
   useEffect(() => {
     try {
@@ -266,6 +270,195 @@ export default function HomePage() {
       setNotice("Saved profile preferences loaded from this browser. Your CV file is not stored.");
     } catch {
       setNotice("Saved settings could not be read because they are invalid or browser storage is unavailable.");
+    }
+  }
+
+  function getCloudApiError(payload: unknown, fallback: string) {
+    if (typeof payload === "object" && payload !== null && "error" in payload && typeof payload.error === "string") {
+      return payload.error;
+    }
+    return fallback;
+  }
+
+  function currentWorkspaceBackup() {
+    return parseJobAgentBackup(createJobAgentBackup({
+      schemaVersion: 3,
+      candidateName,
+      skillsText,
+      rolesText,
+      level,
+      remoteOnly,
+      minimumScore,
+      draftLanguage
+    }, savedJobs, trackedApplications, savedSearches));
+  }
+
+  async function syncWorkspaceToCloud() {
+    if (isCloudBusy) return;
+    setIsCloudBusy(true);
+    setCloudError(false);
+    setCloudMessage("Checking the signed-in account and cloud version…");
+
+    try {
+      const readResponse = await fetch("/api/account/workspace", { method: "GET", cache: "no-store" });
+      const remotePayload: unknown = await readResponse.json().catch(() => null);
+      if (!readResponse.ok) throw new Error(getCloudApiError(remotePayload, "Could not check the cloud workspace."));
+      if (typeof remotePayload !== "object" || remotePayload === null || !("version" in remotePayload)
+        || typeof remotePayload.version !== "number" || !("workspace" in remotePayload)) {
+        throw new Error("The cloud service returned an unexpected response. Local data was not changed.");
+      }
+
+      const remoteVersion = remotePayload.version;
+      if (cloudWorkspaceVersion === null && remotePayload.workspace !== null) {
+        setCloudMessage("This account already has cloud data. Use “Load cloud workspace” first; this avoids overwriting it by accident.");
+        setCloudError(true);
+        return;
+      }
+      if (cloudWorkspaceVersion !== null && remoteVersion !== cloudWorkspaceVersion) {
+        setCloudMessage("Cloud data changed in another session. Load the latest copy before syncing again; no cloud data was overwritten.");
+        setCloudError(true);
+        return;
+      }
+
+      const backup = currentWorkspaceBackup();
+      if (!backup) {
+        throw new Error("The current local workspace contains invalid or over-limit records. Review the profile and saved items before syncing.");
+      }
+
+      const expectedVersion = cloudWorkspaceVersion ?? remoteVersion;
+      const saveResponse = await fetch("/api/account/workspace", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          expectedVersion,
+          workspace: {
+            profile: backup.profile,
+            savedJobs: backup.savedJobs,
+            applications: backup.applications,
+            savedSearches: backup.savedSearches
+          }
+        })
+      });
+      const savedPayload: unknown = await saveResponse.json().catch(() => null);
+      if (!saveResponse.ok) throw new Error(getCloudApiError(savedPayload, "Could not sync the cloud workspace."));
+      if (typeof savedPayload !== "object" || savedPayload === null || !("version" in savedPayload)
+        || typeof savedPayload.version !== "number") {
+        throw new Error("The cloud service returned an unexpected save result.");
+      }
+
+      setCloudWorkspaceVersion(savedPayload.version);
+      setCloudError(false);
+      setCloudMessage("Cloud workspace synced. Profile, saved searches, saved jobs, and application notes are now stored with this account. CV files and extracted CV text were excluded.");
+    } catch (error) {
+      setCloudError(true);
+      setCloudMessage(error instanceof Error ? error.message : "Cloud sync failed. Local data remains available.");
+    } finally {
+      setIsCloudBusy(false);
+    }
+  }
+
+  async function loadWorkspaceFromCloud() {
+    if (isCloudBusy) return;
+    setIsCloudBusy(true);
+    setCloudError(false);
+    setCloudMessage("Loading the signed-in account workspace…");
+
+    try {
+      const response = await fetch("/api/account/workspace", { method: "GET", cache: "no-store" });
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(getCloudApiError(payload, "Could not load the cloud workspace."));
+      if (typeof payload !== "object" || payload === null || !("version" in payload)
+        || typeof payload.version !== "number" || !("workspace" in payload)) {
+        throw new Error("The cloud service returned an unexpected response.");
+      }
+
+      if (payload.workspace === null) {
+        setCloudWorkspaceVersion(0);
+        setCloudError(false);
+        setCloudMessage("This account has no cloud workspace yet. Your local data was left unchanged; use Sync to create the first cloud copy.");
+        return;
+      }
+      if (typeof payload.updatedAt !== "string") {
+        throw new Error("The cloud workspace timestamp is invalid. Local data was not changed.");
+      }
+      if (!window.confirm("Load the cloud workspace and replace this browser's current profile, saved searches, saved roles, and application tracker? CV text is not part of cloud sync.")) {
+        setCloudMessage("Cloud load cancelled. Current local data was left unchanged.");
+        return;
+      }
+
+      const cloudBackup = parseJobAgentBackup({
+        schemaVersion: 2,
+        exportedAt: payload.updatedAt,
+        ...(payload.workspace as Record<string, unknown>)
+      });
+      if (!cloudBackup) {
+        throw new Error("The cloud workspace failed local validation. Nothing was restored.");
+      }
+
+      restoreJobAgentBackupToStorage(window.localStorage, cloudBackup);
+      setCandidateName(cloudBackup.profile.candidateName);
+      setDraftLanguage(cloudBackup.profile.draftLanguage);
+      setSkillsText(cloudBackup.profile.skillsText);
+      setRolesText(cloudBackup.profile.rolesText);
+      setLevel(cloudBackup.profile.level);
+      setRemoteOnly(cloudBackup.profile.remoteOnly);
+      setMinimumScore(cloudBackup.profile.minimumScore);
+      setSavedJobs(cloudBackup.savedJobs);
+      setTrackedApplications(cloudBackup.applications);
+      setSavedSearches(cloudBackup.savedSearches);
+      setSavedSearchName("");
+      setCvName("");
+      setCvInputKey(current => current + 1);
+      setResumeText("");
+      setResumeInfo("");
+      setJobCategoryFilter("all");
+      setJobTypeFilter("all");
+      setPostedWithinFilter("any");
+      setSalaryOnlyFilter(false);
+      setSortMode("match");
+      setApplicationStatusFilter("all");
+      setShowSavedJobs(false);
+      setShowApplications(false);
+      setLiveJobs([]);
+      setShowLiveJobs(false);
+      setLiveError("");
+      setLiveWarning("");
+      setDraftForJob(null);
+      setDraftText("");
+      setAiConsent(false);
+      setAiDraftError("");
+      setCloudWorkspaceVersion(payload.version);
+      setCloudError(false);
+      setCloudMessage("Cloud workspace loaded and validated. Local browser data was replaced; the CV and extracted text were not downloaded.");
+    } catch (error) {
+      setCloudError(true);
+      setCloudMessage(error instanceof Error ? error.message : "Could not load the cloud workspace. Local data remains unchanged.");
+    } finally {
+      setIsCloudBusy(false);
+    }
+  }
+
+  async function deleteCloudWorkspace() {
+    if (isCloudBusy) return;
+    if (!window.confirm("Permanently delete this account's cloud workspace? This does not clear the local browser data or previously exported backup files.")) {
+      return;
+    }
+
+    setIsCloudBusy(true);
+    setCloudError(false);
+    setCloudMessage("Deleting the cloud workspace…");
+    try {
+      const response = await fetch("/api/account/workspace", { method: "DELETE", cache: "no-store" });
+      const payload: unknown = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(getCloudApiError(payload, "Could not delete the cloud workspace."));
+      setCloudWorkspaceVersion(0);
+      setCloudError(false);
+      setCloudMessage("Cloud copy deleted. Local browser data was not changed.");
+    } catch (error) {
+      setCloudError(true);
+      setCloudMessage(error instanceof Error ? error.message : "Could not delete the cloud workspace.");
+    } finally {
+      setIsCloudBusy(false);
     }
   }
 
@@ -673,7 +866,7 @@ export default function HomePage() {
   return <main className="shell">
     <header className="topbar">
       <a className="brand" href="#"><span className="brand-mark">J</span> Job Agent</a>
-      <div className="topbar-actions"><span className="phase-pill">PHASE 20 · SECURE SIGN-IN</span><AuthControls /></div>
+      <div className="topbar-actions"><span className="phase-pill">PHASE 21 · CLOUD WORKSPACE</span><AuthControls /></div>
     </header>
     <section className="hero">
       <div>
@@ -688,7 +881,7 @@ export default function HomePage() {
     </section>
 
     {showApplications
-      ? <div className="notice"><strong>Application tracker:</strong> statuses and role details are saved in this browser only. There is no account sync and nothing is submitted or emailed.</div>
+      ? <div className="notice"><strong>Application tracker:</strong> statuses and role details are saved locally. Use the account cloud controls to sync them manually; nothing is submitted or emailed.</div>
       : showSavedJobs
         ? <div className="notice"><strong>Saved roles:</strong> these records are stored only in this browser. Nothing is uploaded or submitted.</div>
         : showLiveJobs
@@ -737,11 +930,24 @@ export default function HomePage() {
         </label>
         <div className="range-heading"><label htmlFor="score">Minimum match score</label><strong>{minimumScore}%</strong></div>
         <input id="score" className="range" type="range" min={30} max={95} step={5} value={minimumScore} onChange={e => setMinimumScore(Number(e.target.value))}/>
-        <button className="primary-button" onClick={saveProfileSettings}>Save profile settings</button>
-        <button className="secondary-button" onClick={loadProfileSettings}>Load saved profile</button>
+        <button className="primary-button" onClick={saveProfileSettings}>Save profile settings locally</button>
+        <button className="secondary-button" onClick={loadProfileSettings}>Load saved profile locally</button>
+        <section className="cloud-workspace-controls" aria-label="Account cloud workspace">
+          <div className="cloud-workspace-heading">
+            <strong>Account cloud workspace</strong>
+            <span>{cloudWorkspaceVersion === null ? "Not checked" : "Version " + cloudWorkspaceVersion}</span>
+          </div>
+          <small>Sign in and configure Supabase to sync this browser's profile, saved searches, saved roles, and tracker to your account. Sync is manual and version-checked. CV files and extracted CV text are never included. Apply migration 0002 first.</small>
+          <div className="cloud-workspace-actions">
+            <button className="primary-button" type="button" onClick={() => { void syncWorkspaceToCloud(); }} disabled={isCloudBusy}>{isCloudBusy ? "Working…" : "Sync local workspace"}</button>
+            <button className="secondary-button" type="button" onClick={() => { void loadWorkspaceFromCloud(); }} disabled={isCloudBusy}>{isCloudBusy ? "Working…" : "Load from cloud"}</button>
+            <button className="danger-button cloud-delete-button" type="button" onClick={() => { void deleteCloudWorkspace(); }} disabled={isCloudBusy}>Delete cloud copy</button>
+          </div>
+          {cloudMessage && <p className={"cloud-sync-message" + (cloudError ? " cloud-sync-error" : "")} role={cloudError ? "alert" : "status"}>{cloudMessage}</p>}
+        </section>
         <div className="backup-controls">
           <p>Backup and restore</p>
-          <small>Export your profile, saved roles, and application history to a JSON file. CV file bytes and extracted CV text are never included.</small>
+          <small>Export your profile, saved searches, saved roles, and application history to a JSON file. CV file bytes and extracted CV text are never included.</small>
           <button className="secondary-button" type="button" onClick={exportJobAgentBackup}>Export JSON backup</button>
           <label className="field-label" htmlFor="job-agent-backup-file">Restore from a Job Agent backup</label>
           <input key={backupInputKey} id="job-agent-backup-file" className="backup-file-input" type="file" accept=".json,application/json" onChange={event => { setBackupFile(event.target.files?.[0] ?? null); setBackupError(""); }} />
@@ -752,7 +958,7 @@ export default function HomePage() {
         </div>
         <div className="privacy-controls">
           <p>Privacy controls</p>
-          <small>Clear this app’s browser-local profile, saved roles, and application history. A confirmation is required.</small>
+          <small>Clear only this app’s browser-local profile, saved searches, saved roles, and application history. Cloud deletion is a separate action.</small>
           <button className="danger-button" type="button" onClick={clearAllLocalJobAgentData}>Clear my local Job Agent data</button>
         </div>
       </aside>
