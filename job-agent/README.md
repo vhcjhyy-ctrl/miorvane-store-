@@ -1,11 +1,12 @@
-# Job Agent — Phase 20
+# Job Agent — Phase 21
 
 A starter workspace for a personal AI job application agent. This folder is intentionally isolated from the existing store project.
 
 ## Current phase
 - Next.js + TypeScript dashboard
-- Supabase Auth foundation with email magic-link sign-in, safe callback redirects, account status controls, and a fail-closed authentication check on the optional AI route
-- Candidate preferences form with explicit browser-local save/load (no cloud upload)
+- Supabase Auth with email magic-link sign-in, safe callback redirects, Next.js session-refresh middleware, and verified server-side user checks
+- Explicit cloud workspace sync for profile, saved searches, saved roles and application tracker, with RLS, optimistic version checks, validated payloads, and separate cloud deletion
+- Candidate preferences retain local save/load and can be manually synced to a signed-in account; local-only mode remains available
 - Privacy control to clear only Job Agent-owned local storage keys, including saved searches, with confirmation and tests
 - Browser-local saved job searches with one-click rerun by source; searches do not run automatically
 - Versioned JSON backup/restore for the profile, saved searches, shortlist and application tracker, with full validation, a 2 MB cap and restore confirmation; CV bytes/text excluded
@@ -27,14 +28,23 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Supabase migration draft now enables RLS on job sources and jobs, exposing only active, unexpired jobs to authenticated users
 - Initial Supabase SQL schema and RLS policies
 
-## Not implemented yet
-Authentication uses Supabase Auth when `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are configured, but candidate preferences, saved search queries, shortlist, application statuses, notes, and follow-up dates remain in browser local storage. No Supabase database sync is implemented yet. Saved searches can be rerun manually, never run automatically, and are included in versioned JSON backup/restore. The backup parser accepts older v1 files and restores them with no saved searches. Imports use strict validation and explicit confirmation. The UI includes a confirmed cleanup action for the app-owned browser keys; it does not erase files exported earlier or data held by the hosting/provider logs. CV bytes and extracted CV text are processed in the current browser page and are not uploaded or saved. Live search is read-only and uses Remotive and Arbeitnow public APIs. Remotive results are cached for six hours and may be delayed by 24 hours; the source recommends no more than four upstream requests per day. Arbeitnow results are cached for one hour, link back to the provider, and focus mainly on Germany and nearby European markets. Both sources can contain stale, duplicated, or geographically restricted listings; this is not a complete all-market search. The local cover letter is a deterministic template. An optional server-side OpenAI Responses API draft is available in code but disabled by default; it sends only the explicitly consented name, role/skill fields, and selected job details, never CV bytes or extracted CV text. All generated text must be reviewed before use. PDF/DOCX/TXT text extraction is local; scanned/image-only PDFs do not get OCR. Skill suggestions use a fixed list and need candidate confirmation. The Supabase SQL file is a reviewed draft only and has not been applied to a project; verify policies and run it in a test project first. Automated CV section/profile inference, OCR, Supabase connection, Gmail OAuth, email sending, and scheduled automation are not active. Configure `OPENAI_API_KEY` and an explicit `OPENAI_MODEL` server-side, then set `AI_COVER_LETTER_ENABLED=true` only after adding authentication and a shared rate limiter; the included per-process limit is best-effort and not production-grade. Demo data remains available.
+## Integration status and limitations
 
+The Supabase cloud workspace integration is now implemented in code, but it is **not connected to a live project from this repository yet**. To activate it, create a Supabase project, configure the public project URL and publishable key, add the deployed `/auth/callback` URL to Supabase Auth's allowed redirects, and apply both migrations in order: `supabase/migrations/0001_initial_schema.sql` and `supabase/migrations/0002_cloud_workspace.sql`. The new migration creates one private, versioned workspace row per authenticated user and enables row-level security. Use the new **Sync local workspace**, **Load from cloud**, and **Delete cloud copy** controls to move data explicitly. The API validates the whole workspace, checks optimistic versions to prevent silent overwrite from another device, caps request size, and derives the user ID from the verified session. Local clearing and cloud deletion are intentionally separate actions.
+
+The public browser key is not a secret; never commit a service-role key. Docker compiles `NEXT_PUBLIC_*` settings into the browser bundle, so pass the right values as build args when creating the image and rebuild after changing them. The `.env.example` file contains placeholders only.
+
+The CV file and extracted CV text are excluded from cloud workspace sync, JSON backup, and AI requests. CV parsing remains local and scanned/image-only PDFs do not get OCR. Live job discovery is read-only and limited to Remotive and Arbeitnow; records may be stale or region-restricted. The optional OpenAI Responses API route stays disabled by default and requires server-side configuration, an authenticated account, and explicit user consent. Its included in-process limiter is best-effort, not a production shared rate limiter. Gmail OAuth, email sending, scheduled searches, and application submission are still not implemented.
+
+The migration files are reviewed source code only; neither migration has been applied to an external Supabase project from this workspace. Test row-level security with two separate accounts before using real candidate data.
+ 
 ## Run locally
 Requirements: Node.js 22.13+.
 
 ```bash
 cd job-agent
+cp .env.example .env.local
+# Fill in Supabase URL and publishable key in .env.local when using account features.
 npm install
 npm run dev
 npm test
@@ -59,10 +69,10 @@ The service binds to `127.0.0.1:3000` by default. Change `JOB_AGENT_PORT` to use
 AI generation remains disabled unless explicitly enabled at runtime. Do not enable it on a public deployment until authentication and a shared rate limiter are configured. The Compose file does not supply a default model; set `OPENAI_MODEL` explicitly if you later enable the route. Supply secrets through the runtime environment or an approved secret manager; do not bake `.env` files or keys into the image.
 
 ## Next steps
-1. Create a Supabase project and review/apply `supabase/migrations/0001_initial_schema.sql`.
-2. Add candidate-confirmed resume section parsing, and only consider OCR or cloud storage with separate consent and privacy controls.
+1. Create a Supabase project, configure `/auth/callback` as an allowed redirect, and apply `supabase/migrations/0001_initial_schema.sql` followed by `0002_cloud_workspace.sql`.
+2. Verify RLS isolation using two accounts, then sign in and test cloud sync/load/delete with non-sensitive test data before storing a real profile.
 3. Build and smoke-test the Docker image in the deployment environment, then review both active providers' current API terms and rate limits before adding additional authorized sources.
-4. Add account-backed application history, duplicate prevention, and explicit user review before any submission.
+4. Add normalized relational history and server-side audit events if/when the workspace snapshot grows beyond the current MVP limits.
 5. Configure an authenticated deployment and shared rate limiter before enabling the optional AI route.
 6. Configure Gmail OAuth with least-privilege scopes and server-side token storage.
 7. Test any future email workflow with a dedicated mailbox before enabling sending.
