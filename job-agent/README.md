@@ -1,4 +1,4 @@
-# Job Agent — Phase 12
+# Job Agent — Phase 13
 
 A starter workspace for a personal AI job application agent. This folder is intentionally isolated from the existing store project.
 
@@ -16,7 +16,8 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Private application notes and date-based follow-up indicators, included in CSV backups
 - Export tracked applications as CSV with spreadsheet-formula injection protection
 - Editable local cover-letter template plus optional OpenAI Responses API draft, disabled by default and guarded by explicit consent
-- Vitest suites for scoring, result filters/sorting, multi-source merge/deduplication, application dashboard summaries/status filtering, app-local data cleanup, Remotive and Arbeitnow normalization, browser-local shortlist, application tracking, CSV export, cover-letter drafts, and local CV extraction
+- Streaming request-body size limit and UTF-8 validation for the optional AI endpoint, with targeted tests
+- Vitest suites for scoring, result filters/sorting, multi-source merge/deduplication, bounded request-body parsing, application dashboard summaries/status filtering, app-local data cleanup, Remotive and Arbeitnow normalization, browser-local shortlist, application tracking, CSV export, cover-letter drafts, and local CV extraction
 - GitHub Actions runs ESLint, unit tests, and a production build on changes
 - Supabase migration draft now enables RLS on job sources and jobs, exposing only active, unexpired jobs to authenticated users
 - Initial Supabase SQL schema and RLS policies
