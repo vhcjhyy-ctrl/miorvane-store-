@@ -1,4 +1,4 @@
-# Job Agent — Phase 6
+# Job Agent — Phase 7
 
 A starter workspace for a personal AI job application agent. This folder is intentionally isolated from the existing store project.
 
@@ -7,11 +7,12 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Candidate preferences form with explicit browser-local save/load (no cloud upload)
 - Browser-local text extraction for PDF, DOCX, and TXT, with size/page/character limits and reviewable skill suggestions
 - Live remote-job search through the public Remotive feed, plus local sample listings
+- Client-side category, employment type, publication-age and salary-availability filters, plus match/newest/company sorting
 - Explainable match scoring with matched skills, missing skills, and role/experience reasons
 - Browser-local shortlist with defensive storage parsing
 - Browser-local application status tracker (interested, preparing, applied, interview, offer, rejected, withdrawn)
 - Editable local cover-letter template plus optional OpenAI Responses API draft, disabled by default and guarded by explicit consent
-- Vitest suites for scoring, Remotive normalization, browser-local shortlist, application tracking, cover-letter drafts, and local CV extraction
+- Vitest suites for scoring, result filters/sorting, Remotive normalization, browser-local shortlist, application tracking, cover-letter drafts, and local CV extraction
 - GitHub Actions runs ESLint, unit tests, and a production build on changes
 - Supabase migration draft now enables RLS on job sources and jobs, exposing only active, unexpired jobs to authenticated users
 - Initial Supabase SQL schema and RLS policies

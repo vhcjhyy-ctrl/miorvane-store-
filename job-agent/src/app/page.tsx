@@ -7,6 +7,7 @@ import { readShortlist, toggleShortlist } from "@/lib/shortlist";
 import { readApplicationTracker, updateApplicationTracker, type ApplicationStatus, type TrackedApplication } from "@/lib/application-tracker";
 import { extractResumeText } from "@/lib/cv-parser";
 import { extractKnownSkills } from "@/lib/remotive";
+import { filterAndSortMatches, type JobAgeFilter, type JobSortMode } from "@/lib/job-results";
 
 const sampleJobs: Job[] = [
   { id: "demo-1", title: "Junior Python Developer", company: "Northstar Systems", location: "Remote — Worldwide", remote: true, skills: ["Python", "SQL", "Git"], level: "entry", description: "Support backend services, write Python code, and work with relational databases.", url: "https://example.com/jobs/demo-1" },
@@ -25,6 +26,11 @@ export default function HomePage() {
   const [level, setLevel] = useState<CandidateProfile["level"]>("entry");
   const [remoteOnly, setRemoteOnly] = useState(true);
   const [minimumScore, setMinimumScore] = useState(60);
+  const [jobCategoryFilter, setJobCategoryFilter] = useState("all");
+  const [jobTypeFilter, setJobTypeFilter] = useState("all");
+  const [postedWithinFilter, setPostedWithinFilter] = useState<JobAgeFilter>("any");
+  const [salaryOnlyFilter, setSalaryOnlyFilter] = useState(false);
+  const [sortMode, setSortMode] = useState<JobSortMode>("match");
   const [notice, setNotice] = useState("");
   const [liveQuery, setLiveQuery] = useState("Python developer");
   const [liveJobs, setLiveJobs] = useState<Job[]>([]);
@@ -106,12 +112,28 @@ export default function HomePage() {
   }), [skillsText, rolesText, level, remoteOnly]);
 
   const activeJobs = showApplications ? trackedApplications.map(item => item.job) : showSavedJobs ? savedJobs : showLiveJobs ? liveJobs : sampleJobs;
-  const matches = useMemo(() => activeJobs
+  const availableCategories = useMemo(() => Array.from(new Set(activeJobs.map(job => job.category?.trim()).filter((value): value is string => Boolean(value)))).sort((a, b) => a.localeCompare(b)), [activeJobs]);
+  const availableJobTypes = useMemo(() => Array.from(new Set(activeJobs.map(job => job.jobType?.trim()).filter((value): value is string => Boolean(value)))).sort((a, b) => a.localeCompare(b)), [activeJobs]);
+  const scoredMatches = useMemo(() => activeJobs
     .filter(job => !candidate.remoteOnly || job.remote)
     .map(job => ({ job, explanation: explainJobMatch(candidate, job) }))
-    .filter(item => item.explanation.score >= minimumScore)
-    .sort((a, b) => b.explanation.score - a.explanation.score),
+    .filter(item => item.explanation.score >= minimumScore),
   [activeJobs, candidate, minimumScore]);
+  const matches = useMemo(() => filterAndSortMatches(scoredMatches, {
+    category: jobCategoryFilter,
+    jobType: jobTypeFilter,
+    postedWithin: postedWithinFilter,
+    salaryOnly: salaryOnlyFilter,
+    sortBy: sortMode
+  }), [scoredMatches, jobCategoryFilter, jobTypeFilter, postedWithinFilter, salaryOnlyFilter, sortMode]);
+
+  function resetJobFilters() {
+    setJobCategoryFilter("all");
+    setJobTypeFilter("all");
+    setPostedWithinFilter("any");
+    setSalaryOnlyFilter(false);
+    setSortMode("match");
+  }
 
   async function handleLiveSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -434,6 +456,41 @@ export default function HomePage() {
           {showLiveJobs && liveFetchedAt && <p className="retrieved-note">Fetched by this session: {new Date(liveFetchedAt).toLocaleString()} · source data may be cached.</p>}
         </div>
         <p className="subheading">{showApplications ? "Your tracked applications ranked against your current candidate profile." : showSavedJobs ? "Your browser-local shortlist ranked against your current candidate profile." : showLiveJobs ? "Live-source results ranked against your current candidate profile." : "Sample listings scored against your current profile."}</p>
+        <section className="job-filters" aria-label="Filter and sort job results">
+          <div className="filter-heading">
+            <div><strong>Refine results</strong><small>{matches.length} of {scoredMatches.length} matched roles shown</small></div>
+            <button className="filter-reset" type="button" onClick={resetJobFilters}>Reset filters</button>
+          </div>
+          <div className="filter-grid">
+            <label htmlFor="job-category-filter">Category
+              <select id="job-category-filter" value={jobCategoryFilter} onChange={event => setJobCategoryFilter(event.target.value)}>
+                <option value="all">All categories</option>
+                {availableCategories.map(category => <option key={category} value={category}>{category}</option>)}
+              </select>
+            </label>
+            <label htmlFor="job-type-filter">Employment type
+              <select id="job-type-filter" value={jobTypeFilter} onChange={event => setJobTypeFilter(event.target.value)}>
+                <option value="all">All types</option>
+                {availableJobTypes.map(type => <option key={type} value={type}>{type.replace(/[_-]+/g, " ").replace(/\b\w/g, letter => letter.toUpperCase())}</option>)}
+              </select>
+            </label>
+            <label htmlFor="job-age-filter">Publication date
+              <select id="job-age-filter" value={postedWithinFilter} onChange={event => setPostedWithinFilter(event.target.value as JobAgeFilter)}>
+                <option value="any">Any date</option>
+                <option value="7">Last 7 days</option>
+                <option value="30">Last 30 days</option>
+              </select>
+            </label>
+            <label htmlFor="job-sort-mode">Sort results
+              <select id="job-sort-mode" value={sortMode} onChange={event => setSortMode(event.target.value as JobSortMode)}>
+                <option value="match">Best match</option>
+                <option value="newest">Newest first</option>
+                <option value="company">Company A–Z</option>
+              </select>
+            </label>
+          </div>
+          <label className="salary-toggle"><input type="checkbox" checked={salaryOnlyFilter} onChange={event => setSalaryOnlyFilter(event.target.checked)}/> Only listings with published compensation</label>
+        </section>
         {matches.length === 0 && <div className="empty-state">{showApplications ? (trackedApplications.length === 0 ? "No applications being tracked yet. Open live or demo listings and select a status." : "No tracked roles meet your current score threshold. Lower the threshold or change your profile.") : showSavedJobs ? (savedJobs.length === 0 ? "No roles saved yet. Switch to live or demo listings and choose Save role." : "No saved roles meet your current score threshold. Lower the threshold or change your profile.") : showLiveJobs && isSearching ? "Searching for matching roles…" : showLiveJobs ? "No live listings meet this search and score threshold. Try another keyword or lower the threshold." : "No sample jobs meet this score and preference combination. Lower the threshold or change your profile."}</div>}
         {matches.map(({job, explanation}) => <article className="job-card" key={job.id}>
           <div className="job-card-top">
