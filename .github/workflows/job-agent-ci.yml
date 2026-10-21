@@ -49,3 +49,6 @@ jobs:
 
       - name: Build production application
         run: npm run build
+
+      - name: Build Docker production image
+        run: docker build --tag job-agent:ci .

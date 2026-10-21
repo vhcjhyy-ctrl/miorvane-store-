@@ -1,4 +1,4 @@
-# Job Agent — Phase 15
+# Job Agent — Phase 16
 
 A starter workspace for a personal AI job application agent. This folder is intentionally isolated from the existing store project.
 
@@ -19,7 +19,8 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Bilingual Arabic/English cover-letter templates and optional OpenAI Responses API drafts, disabled by default and guarded by explicit consent
 - Streaming request-body size limit and UTF-8 validation for the optional AI endpoint, with targeted tests
 - Vitest suites for scoring, result filters/sorting, multi-source merge/deduplication, bounded request-body parsing, backup validation/round-trip, application dashboard summaries/status filtering, app-local data cleanup, Remotive and Arbeitnow normalization, browser-local shortlist, application tracking, CSV export, English/Arabic cover-letter drafts, and local CV extraction
-- GitHub Actions runs ESLint, unit tests, and a production build on changes
+- GitHub Actions runs ESLint, unit tests, a production build, and a Docker image build on changes
+- Multi-stage Docker image, loopback-only Docker Compose port by default, and a secret-free health endpoint
 - Supabase migration draft now enables RLS on job sources and jobs, exposing only active, unexpired jobs to authenticated users
 - Initial Supabase SQL schema and RLS policies
 
@@ -39,10 +40,25 @@ npm run build
 
 Open http://localhost:3000.
 
+## Run with Docker
+
+Requirements: Docker Engine with the Compose plugin.
+
+```bash
+cd job-agent
+docker compose up --build -d
+docker compose ps
+docker compose logs -f job-agent
+```
+
+The service binds to `127.0.0.1:3000` by default. Change `JOB_AGENT_PORT` to use another local port. The container uses a multi-stage production build and runs as an unprivileged user. The `/api/health` endpoint is intended for container health checks and does not reveal runtime secrets.
+
+AI generation remains disabled unless explicitly enabled at runtime. Do not enable it on a public deployment until authentication and a shared rate limiter are configured. Supply secrets through the runtime environment or an approved secret manager; do not bake `.env` files or keys into the image.
+
 ## Next steps
 1. Create a Supabase project and review/apply `supabase/migrations/0001_initial_schema.sql`.
 2. Add candidate-confirmed resume section parsing, and only consider OCR or cloud storage with separate consent and privacy controls.
-3. Review both active providers' current API terms and rate limits before adding additional authorized sources.
+3. Build and smoke-test the Docker image in the deployment environment, then review both active providers' current API terms and rate limits before adding additional authorized sources.
 4. Add account-backed application history, duplicate prevention, and explicit user review before any submission.
 5. Configure an authenticated deployment and shared rate limiter before enabling the optional AI route.
 6. Configure Gmail OAuth with least-privilege scopes and server-side token storage.
