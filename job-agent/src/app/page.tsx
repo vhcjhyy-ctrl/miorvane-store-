@@ -5,6 +5,7 @@ import { explainJobMatch, type CandidateProfile, type Job } from "@/lib/scoring"
 import { buildCoverLetterDraft } from "@/lib/application-draft";
 import { readShortlist, toggleShortlist } from "@/lib/shortlist";
 import { readApplicationTracker, updateApplicationTracker, type ApplicationStatus, type TrackedApplication } from "@/lib/application-tracker";
+import { applicationTrackerToCsv } from "@/lib/application-export";
 import { extractResumeText } from "@/lib/cv-parser";
 import { extractKnownSkills } from "@/lib/remotive";
 import { filterAndSortMatches, type JobAgeFilter, type JobSortMode } from "@/lib/job-results";
@@ -259,6 +260,28 @@ export default function HomePage() {
     }
   }
 
+  function exportTrackedApplicationsCsv() {
+    if (trackedApplications.length === 0) {
+      setNotice("There are no tracked applications to export yet.");
+      return;
+    }
+    try {
+      const csv = applicationTrackerToCsv(trackedApplications);
+      const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "job-agent-applications-" + new Date().toISOString().slice(0, 10) + ".csv";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setNotice("Application tracker exported to a CSV file on your device. No data was uploaded.");
+    } catch {
+      setNotice("The CSV export could not be created in this browser.");
+    }
+  }
+
   function loadTrackedApplications() {
     try {
       const applications = readApplicationTracker(window.localStorage.getItem("job-agent.applications.v1"));
@@ -365,7 +388,7 @@ export default function HomePage() {
   return <main className="shell">
     <header className="topbar">
       <a className="brand" href="#"><span className="brand-mark">J</span> Job Agent</a>
-      <span className="phase-pill">PHASE 5 · PRIVATE CV READING</span>
+      <span className="phase-pill">PHASE 8 · TRACKER EXPORT</span>
     </header>
     <section className="hero">
       <div>
@@ -450,6 +473,7 @@ export default function HomePage() {
           <div className="source-mode-actions">
             <button className="secondary-button" type="button" onClick={loadSavedJobs}>Saved roles ({savedJobs.length})</button>
             <button className="secondary-button" type="button" onClick={loadTrackedApplications}>Application tracker ({trackedApplications.length})</button>
+            {showApplications && <button className="secondary-button export-csv-button" type="button" onClick={exportTrackedApplicationsCsv} disabled={trackedApplications.length === 0}>Export CSV</button>}
             <button className="secondary-button" type="button" onClick={showDemoJobs}>Show demo data</button>
           </div>
           {liveError && <p className="inline-error" role="alert">{liveError}</p>}
