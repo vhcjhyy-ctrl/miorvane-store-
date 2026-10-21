@@ -58,13 +58,22 @@ function createSupabaseMock(options: {
   let operation: "select" | "insert" | "update" | "delete" = "select";
   let writePayload: Partial<Row> | null = null;
   let filters: Record<string, unknown> = {};
-  const builder: Record<string, any> = {};
+  type MockBuilder = {
+    select: (columns?: string) => MockBuilder;
+    eq: (column: string, value: unknown) => MockBuilder;
+    maybeSingle: () => Promise<{ data: Row | null; error: { code?: string } | null }>;
+    insert: (payload: Partial<Row>) => MockBuilder;
+    update: (payload: Partial<Row>) => MockBuilder;
+    delete: () => MockBuilder;
+  };
+  const builder = {} as MockBuilder;
 
-  builder.select = vi.fn((_columns?: string) => {
+  builder.select = vi.fn((columns?: string) => {
+    void columns;
     if (operation === "delete") {
       const deleted = row && filters.user_id === row.user_id ? [{ user_id: row.user_id }] : [];
       if (deleted.length) row = null;
-      return Promise.resolve({ data: deleted, error: null });
+      return Promise.resolve({ data: deleted, error: null }) as unknown as MockBuilder;
     }
     return builder;
   });
