@@ -1,0 +1,91 @@
+name: Job Agent CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "job-agent/**"
+      - ".github/workflows/job-agent-ci.yml"
+      - ".github/workflows/job-agent-release.yml"
+      - ".github/workflows/job-agent-catalog-sync.yml"
+      - "render.yaml"
+  pull_request:
+    paths:
+      - "job-agent/**"
+      - ".github/workflows/job-agent-ci.yml"
+      - ".github/workflows/job-agent-release.yml"
+      - ".github/workflows/job-agent-catalog-sync.yml"
+      - "render.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: job-agent-ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Lint, test, and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: job-agent
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: job-agent/package.json
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund --no-progress
+
+      - name: Validate Render Blueprint
+        run: |
+          ruby -r yaml -e 'config = YAML.safe_load_file("../render.yaml"); services = config["services"]; abort("Render blueprint must define the Job Agent web service and health endpoint") unless services.is_a?(Array) && services.any? { |service| service["name"] == "job-agent" && service["runtime"] == "docker" && service["healthCheckPath"] == "/api/health" }; puts "Render Blueprint structure is valid."'
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run unit tests
+        run: npm test
+
+      - name: Build production application
+        run: npm run build
+
+      - name: Build Docker production image
+        run: docker build --tag job-agent:ci .
+
+      - name: Validate Docker Compose configuration
+        run: docker compose config --quiet
+
+      - name: Smoke-test production container
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --detach --rm --name job-agent-ci \
+            --publish 127.0.0.1:3300:3000 \
+            --env AI_COVER_LETTER_ENABLED=false \
+            --env OPENAI_MODEL= \
+            job-agent:ci
+          cleanup() {
+            docker logs job-agent-ci || true
+            docker stop job-agent-ci >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3300/api/health; then
+              echo "Production container health endpoint responded successfully."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Container failed to become healthy within 60 seconds."
+          exit 1

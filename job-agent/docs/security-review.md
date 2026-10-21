@@ -1,0 +1,33 @@
+# Job Agent — Security and launch checklist
+
+Review date: 2026-10-21
+
+This document records implemented controls and the remaining launch blockers. It is an implementation checklist, not an independent security audit.
+
+## Implemented controls
+
+- Browser job search is read-only. A protected catalog-sync route uses a server-held bearer secret and a server-side Supabase service-role client; it fetches the public providers, validates URLs/text, upserts by source/external ID, records sanitized audit counts, and preserves existing catalog rows on provider outages. The public catalog API reads only active/unexpired jobs and enabled-source metadata through RLS; provider configuration columns are not granted to anon users.
+- Candidate profile data, saved search queries, shortlist entries, application notes, and application statuses are stored in browser local storage. Saved searches can be rerun manually, are included in versioned JSON backups, and never run automatically. The privacy control removes only the Job Agent-owned versioned keys after confirmation; previously exported CSV files are not erased.
+- CV files and extracted CV text are processed in the browser and are not uploaded or included in the optional AI payload. The CV-to-job keyword comparison runs locally against a fixed skill vocabulary and does not alter the main job-match score.
+- AI cover-letter generation requires the owner-controlled `AI_COVER_LETTER_ENABLED=true`, a server-side `OPENAI_API_KEY`, an explicitly configured model, a verified Supabase user session, and a client consent flag that is validated again on the server.
+- Supabase SSR auth uses server-validated `auth.getUser()` rather than trusting client-provided user IDs. Middleware refreshes sessions for Next.js 15.
+- Cloud sync uses a versioned per-user workspace row protected by RLS. The route derives `user_id` from the verified cookie session, validates all workspace records before writing, applies optimistic concurrency checks, and supports separate cloud-only deletion. The email callback accepts only safe relative redirect paths. If Supabase environment variables are missing, the AI endpoint fails closed.
+- The optional AI route forwards only a validated allowlist of candidate-entered fields and selected job details, supports Arabic or English output, with the selected language included in the explicitly consented request, uses `store: false`, and has a streaming request-body byte ceiling before buffering the full payload.
+- CSV export quotes cells and neutralizes spreadsheet formula prefixes.
+- `/api/health/ready` performs a live catalog query against Supabase and returns only a bounded status/remediation response, separate from the secret-free process liveness endpoint.
+- Production responses set `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-DNS-Prefetch-Control: off`, and a restrictive `Permissions-Policy`. HTTPS/HSTS enforcement remains the responsibility of the production hosting edge.
+- ESLint, Vitest, production Next.js build, Docker image build, Compose validation, and a production-container health smoke test run in GitHub Actions.
+
+## Required before public launch
+
+1. Configure and test Supabase Auth in a real project, including email delivery, site URL, allowed callback URL, session expiry, and account recovery. The login scaffold exists, but no project is connected.
+2. Replace the in-memory per-process AI request counter with a shared, durable rate limiter and abuse monitoring.
+3. Verify all row-level security policies with separate user accounts and run negative access tests. The repository contains migration source files; no external migration has been applied.
+4. Add account-backed data export/deletion policies, retention rules, and privacy notices for any server-stored data.
+5. Add a real secret manager and deployment-specific environment configuration. Set `OPENAI_MODEL` explicitly if AI is intentionally enabled. Never expose the OpenAI key or Supabase service-role key through a `NEXT_PUBLIC_*` variable.
+6. Verify each job provider's current API terms, cache guidance, and attribution requirements before increasing request frequency or adding providers.
+7. Keep applications and email sending disabled until Gmail OAuth least-privilege scopes, user review/approval, duplicate prevention, and delivery/audit logs are implemented and tested.
+
+## Current limitations
+
+The application is not deployed. Supabase and Gmail are not connected, job discovery is limited to the integrated public feeds, CV extraction is local and does not OCR image-only PDFs, and application tracking stays in the browser. The optional AI integration is disabled unless the deployment owner explicitly configures it.
