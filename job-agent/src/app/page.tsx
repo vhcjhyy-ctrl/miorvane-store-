@@ -137,6 +137,7 @@ export default function HomePage() {
 
       const storage = window.localStorage;
       restoreJobAgentBackupToStorage(storage, backup);
+      setCloudWorkspaceVersion(null);
 
       setCandidateName(backup.profile.candidateName);
       setDraftLanguage(backup.profile.draftLanguage);
@@ -182,6 +183,7 @@ export default function HomePage() {
 
     try {
       clearJobAgentLocalData(window.localStorage);
+      setCloudWorkspaceVersion(null);
       setCandidateName("");
       setDraftLanguage("en");
       setSkillsText("");
@@ -310,9 +312,13 @@ export default function HomePage() {
 
       const remoteVersion = remotePayload.version;
       if (cloudWorkspaceVersion === null && remotePayload.workspace !== null) {
-        setCloudMessage("This account already has cloud data. Use “Load cloud workspace” first; this avoids overwriting it by accident.");
-        setCloudError(true);
-        return;
+        const replaceRemote = window.confirm(
+          "A cloud workspace already exists for this account. Replace that cloud copy with the data in this browser? This cannot be undone unless you have a backup."
+        );
+        if (!replaceRemote) {
+          setCloudMessage("Sync cancelled. Existing cloud data and local data were left unchanged.");
+          return;
+        }
       }
       if (cloudWorkspaceVersion !== null && remoteVersion !== cloudWorkspaceVersion) {
         setCloudMessage("Cloud data changed in another session. Load the latest copy before syncing again; no cloud data was overwritten.");
