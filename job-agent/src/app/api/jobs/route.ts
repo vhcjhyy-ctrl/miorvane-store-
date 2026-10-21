@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { Job } from "@/lib/scoring";
 import { filterArbeitnowJobs } from "@/lib/arbeitnow";
 import { filterRemotiveJobs } from "@/lib/remotive";
+import { mergeJobSources } from "@/lib/job-sources";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,24 +46,6 @@ async function fetchArbeitnowJobs(query: string, perSourceLimit: number): Promis
   return filterArbeitnowJobs(payload.data, query, perSourceLimit);
 }
 
-function interleaveJobs(remotive: Job[], arbeitnow: Job[], limit: number): Job[] {
-  const merged: Job[] = [];
-  const maxLength = Math.max(remotive.length, arbeitnow.length);
-  for (let index = 0; index < maxLength && merged.length < limit; index += 1) {
-    if (remotive[index]) merged.push(remotive[index]);
-    if (arbeitnow[index] && merged.length < limit) merged.push(arbeitnow[index]);
-  }
-
-  const seen = new Set<string>();
-  return merged.filter(job => {
-    const key = [job.title, job.company, job.location]
-      .map(value => value.normalize("NFKC").trim().toLowerCase())
-      .join("|");
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  }).slice(0, limit);
-}
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
@@ -101,7 +84,7 @@ export async function GET(request: Request) {
   const remotive = successful.find(item => item.source === "Remotive")?.jobs ?? [];
   const arbeitnow = successful.find(item => item.source === "Arbeitnow")?.jobs ?? [];
   const jobs = source === "all"
-    ? interleaveJobs(remotive, arbeitnow, limit)
+    ? mergeJobSources(remotive, arbeitnow, limit)
     : (source === "remotive" ? remotive : arbeitnow).slice(0, limit);
 
   return NextResponse.json({

@@ -7,7 +7,7 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Candidate preferences form with explicit browser-local save/load (no cloud upload)
 - Privacy control to clear only Job Agent-owned local storage keys, with confirmation and tests
 - Browser-local text extraction for PDF, DOCX, and TXT, with size/page/character limits and reviewable skill suggestions
-- Live job search through the public Remotive feed and Arbeitnow's public feed, plus local sample listings; selectable provider and explicit source attribution
+- Live job search through the public Remotive feed and Arbeitnow's public feed, plus local sample listings; selectable provider, balanced result merge, basic cross-provider duplicate suppression, and explicit source attribution
 - Client-side category, employment type, publication-age and salary-availability filters, plus match/newest/company sorting
 - Explainable match scoring with matched skills, missing skills, and role/experience reasons
 - Browser-local shortlist with defensive storage parsing
@@ -16,7 +16,7 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Private application notes and date-based follow-up indicators, included in CSV backups
 - Export tracked applications as CSV with spreadsheet-formula injection protection
 - Editable local cover-letter template plus optional OpenAI Responses API draft, disabled by default and guarded by explicit consent
-- Vitest suites for scoring, result filters/sorting, application dashboard summaries/status filtering, app-local data cleanup, Remotive and Arbeitnow normalization, browser-local shortlist, application tracking, CSV export, cover-letter drafts, and local CV extraction
+- Vitest suites for scoring, result filters/sorting, multi-source merge/deduplication, application dashboard summaries/status filtering, app-local data cleanup, Remotive and Arbeitnow normalization, browser-local shortlist, application tracking, CSV export, cover-letter drafts, and local CV extraction
 - GitHub Actions runs ESLint, unit tests, and a production build on changes
 - Supabase migration draft now enables RLS on job sources and jobs, exposing only active, unexpired jobs to authenticated users
 - Initial Supabase SQL schema and RLS policies
