@@ -15,6 +15,7 @@ import { clearJobAgentLocalData } from "@/lib/local-data";
 import { readSavedJobSearches, upsertSavedJobSearch, removeSavedJobSearch, type JobSearchSource, type SavedJobSearch } from "@/lib/saved-searches";
 import { createJobAgentBackup, parseJobAgentBackup, restoreJobAgentBackupToStorage } from "@/lib/backup";
 import { AuthControls } from "@/components/auth-controls";
+import { buildIntegrationHealthReport, type IntegrationHealthReport, type HealthProbe } from "@/lib/integration-health";
 
 const sampleJobs: Job[] = [
   { id: "demo-1", title: "Junior Python Developer", company: "Northstar Systems", location: "Remote — Worldwide", remote: true, skills: ["Python", "SQL", "Git"], level: "entry", description: "Support backend services, write Python code, and work with relational databases.", url: "https://example.com/jobs/demo-1" },
@@ -69,6 +70,9 @@ export default function HomePage() {
   const [isCloudBusy, setIsCloudBusy] = useState(false);
   const [cloudMessage, setCloudMessage] = useState("");
   const [cloudError, setCloudError] = useState(false);
+  const [integrationReport, setIntegrationReport] = useState<IntegrationHealthReport | null>(null);
+  const [isCheckingIntegrations, setIsCheckingIntegrations] = useState(false);
+  const [integrationCheckedAt, setIntegrationCheckedAt] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -293,6 +297,43 @@ export default function HomePage() {
       minimumScore,
       draftLanguage
     }, savedJobs, trackedApplications, savedSearches));
+  }
+
+  async function readConnectionProbe(path: string): Promise<HealthProbe> {
+    try {
+      const response = await fetch(path, { method: "GET", cache: "no-store", headers: { Accept: "application/json" } });
+      const payload: unknown = await response.json().catch(() => null);
+      return { ok: response.ok, status: response.status, payload };
+    } catch {
+      return { ok: false, status: 0, payload: null };
+    }
+  }
+
+  async function checkIntegrationsNow() {
+    if (isCheckingIntegrations) return;
+    setIsCheckingIntegrations(true);
+    try {
+      const [application, liveJobs, catalog, cloudWorkspace] = await Promise.all([
+        readConnectionProbe("/api/health"),
+        readConnectionProbe("/api/jobs?q=python&limit=1&source=all"),
+        readConnectionProbe("/api/health/ready"),
+        readConnectionProbe("/api/account/workspace")
+      ]);
+      setIntegrationReport(buildIntegrationHealthReport({ application, liveJobs, catalog, cloudWorkspace }));
+      setIntegrationCheckedAt(new Date().toISOString());
+    } finally {
+      setIsCheckingIntegrations(false);
+    }
+  }
+
+  function integrationStateLabel(state: IntegrationHealthReport["application"]["state"]) {
+    switch (state) {
+      case "connected": return "Connected";
+      case "partial": return "Partial";
+      case "setup_required": return "Setup required";
+      case "sign_in_required": return "Sign-in required";
+      default: return "Unavailable";
+    }
   }
 
   async function syncWorkspaceToCloud() {
@@ -877,7 +918,7 @@ export default function HomePage() {
   return <main className="shell">
     <header className="topbar">
       <a className="brand" href="#"><span className="brand-mark">J</span> Job Agent</a>
-      <div className="topbar-actions"><span className="phase-pill">PHASE 22 · DATABASE CATALOG</span><AuthControls /></div>
+      <div className="topbar-actions"><span className="phase-pill">PHASE 24 · INTEGRATION HEALTH</span><AuthControls /></div>
     </header>
     <section className="hero">
       <div>
@@ -943,6 +984,27 @@ export default function HomePage() {
         <input id="score" className="range" type="range" min={30} max={95} step={5} value={minimumScore} onChange={e => setMinimumScore(Number(e.target.value))}/>
         <button className="primary-button" onClick={saveProfileSettings}>Save profile settings locally</button>
         <button className="secondary-button" onClick={loadProfileSettings}>Load saved profile locally</button>
+        <section className="integration-health-panel" aria-label="Live integration status">
+          <div className="integration-health-heading">
+            <div><strong>Live connection status</strong><small>Checks the app API, live job feeds, Supabase catalog and account workspace.</small></div>
+            <button className="secondary-button" type="button" onClick={() => { void checkIntegrationsNow(); }} disabled={isCheckingIntegrations}>
+              {isCheckingIntegrations ? "Checking…" : "Test connections"}
+            </button>
+          </div>
+          {integrationCheckedAt && <p className="integration-last-checked">Last checked {new Date(integrationCheckedAt).toLocaleString()}</p>}
+          {!integrationReport && <p className="integration-prompt">No test has run yet. Select “Test connections” to check the live endpoints.</p>}
+          {integrationReport && <div className="integration-check-list">
+            {([
+              ["Application API", integrationReport.application],
+              ["Live job feeds", integrationReport.liveJobs],
+              ["Supabase catalog", integrationReport.catalog],
+              ["Cloud workspace", integrationReport.cloudWorkspace]
+            ] as const).map(([label, result]) => <div className="integration-check-row" key={label}>
+              <div className="integration-check-copy"><strong>{label}</strong><small>{result.detail}</small></div>
+              <span className={"integration-state integration-state-" + result.state}>{integrationStateLabel(result.state)}</span>
+            </div>)}
+          </div>}
+        </section>
         <section className="cloud-workspace-controls" aria-label="Account cloud workspace">
           <div className="cloud-workspace-heading">
             <strong>Account cloud workspace</strong>

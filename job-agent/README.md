@@ -1,4 +1,4 @@
-# Job Agent — Phase 23
+# Job Agent — Phase 24
 
 A starter workspace for a personal AI job application agent. This folder is intentionally isolated from the existing store project.
 
@@ -27,8 +27,9 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Bilingual Arabic/English cover-letter templates and optional OpenAI Responses API drafts, disabled by default and guarded by explicit consent
 - Streaming request-body size limit and UTF-8 validation for the optional AI endpoint, with targeted tests
 - Vitest suites for scoring, result filters/sorting, multi-source merge/deduplication, live job API route integration, bounded request-body parsing, backup validation/round-trip, application dashboard summaries/status filtering, app-local data cleanup, saved-search validation/upsert/removal, Remotive and Arbeitnow normalization, browser-local shortlist, application tracking, CSV export, English/Arabic cover-letter drafts, and local CV extraction and CV-to-job keyword comparison
-- GitHub Actions runs ESLint, unit tests, a production build, Docker image build, Compose configuration validation, and a real container health smoke test; provider-route integration tests cover partial outages, malformed feeds, source selection, and result limits
+- GitHub Actions runs ESLint, unit tests, a production build, Docker image build, Compose configuration validation, and a real container health smoke test; integration health classification has unit tests; provider-route integration tests cover partial outages, malformed feeds, source selection, and result limits
 - Separate liveness (`/api/health`) and Supabase catalog readiness (`/api/health/ready`) probes; the readiness endpoint checks the real catalog query and reports safe migration guidance
+- In-app Integration Health panel can live-check the app API, public job feeds, Supabase catalog readiness, and signed-in cloud workspace state without displaying secrets; each state includes next-step guidance
 - Multi-stage Docker image, loopback-only Docker Compose port by default, secret-free health endpoint, and baseline security response headers (no-sniff, frame denial, referrer policy, and restrictive browser permissions)
 - Supabase migrations enable RLS on private workspace rows and restrict public catalog reads to active, unexpired jobs plus enabled-source metadata; private source configuration is not granted to anon users
 - Initial Supabase SQL schema and RLS policies
