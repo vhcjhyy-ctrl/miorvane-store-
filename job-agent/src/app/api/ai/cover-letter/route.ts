@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { readBoundedRequestBody } from "@/lib/bounded-request-body";
 import {
   AI_COVER_LETTER_INSTRUCTIONS,
   buildAiCoverLetterInput,
@@ -9,7 +10,7 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_REQUEST_CHARS = 20_000;
+const MAX_REQUEST_BYTES = 20_000;
 const WINDOW_MS = 60 * 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 4;
 
@@ -54,17 +55,18 @@ export async function POST(request: Request) {
   }
 
   const contentLength = Number(request.headers.get("content-length") ?? "0");
-  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_CHARS) {
+  if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) {
     return jsonError("Request body is too large.", 413);
   }
 
   let rawBody: string;
   try {
-    rawBody = await request.text();
+    const boundedBody = await readBoundedRequestBody(request, MAX_REQUEST_BYTES);
+    if (boundedBody.tooLarge) return jsonError("Request body is too large.", 413);
+    rawBody = boundedBody.body;
   } catch {
-    return jsonError("Could not read request body.", 400);
+    return jsonError("Could not read a valid UTF-8 request body.", 400);
   }
-  if (rawBody.length > MAX_REQUEST_CHARS) return jsonError("Request body is too large.", 413);
 
   let payload: unknown;
   try {
