@@ -16,6 +16,7 @@ on:
       - ".github/workflows/job-agent-ci.yml"
       - ".github/workflows/job-agent-release.yml"
       - ".github/workflows/job-agent-catalog-sync.yml"
+      - "render.yaml"
   workflow_dispatch:
 
 permissions:
