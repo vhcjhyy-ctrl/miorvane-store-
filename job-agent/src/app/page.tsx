@@ -11,6 +11,7 @@ import { extractResumeText } from "@/lib/cv-parser";
 import { extractKnownSkills } from "@/lib/remotive";
 import { filterAndSortMatches, type JobAgeFilter, type JobSortMode } from "@/lib/job-results";
 import { clearJobAgentLocalData } from "@/lib/local-data";
+import { createJobAgentBackup, parseJobAgentBackup } from "@/lib/backup";
 
 const sampleJobs: Job[] = [
   { id: "demo-1", title: "Junior Python Developer", company: "Northstar Systems", location: "Remote — Worldwide", remote: true, skills: ["Python", "SQL", "Git"], level: "entry", description: "Support backend services, write Python code, and work with relational databases.", url: "https://example.com/jobs/demo-1" },
@@ -55,6 +56,10 @@ export default function HomePage() {
   const [aiConsent, setAiConsent] = useState(false);
   const [isAiDrafting, setIsAiDrafting] = useState(false);
   const [aiDraftError, setAiDraftError] = useState("");
+  const [backupFile, setBackupFile] = useState<File | null>(null);
+  const [backupError, setBackupError] = useState("");
+  const [isRestoringBackup, setIsRestoringBackup] = useState(false);
+  const [backupInputKey, setBackupInputKey] = useState(0);
 
   useEffect(() => {
     try {
@@ -64,6 +69,97 @@ export default function HomePage() {
       // Storage may be disabled; individual save/load actions show user-facing errors.
     }
   }, []);
+
+  function exportJobAgentBackup() {
+    try {
+      const profile = {
+        schemaVersion: 3 as const,
+        candidateName,
+        skillsText,
+        rolesText,
+        level,
+        remoteOnly,
+        minimumScore,
+        draftLanguage
+      };
+      const backup = createJobAgentBackup(profile, savedJobs, trackedApplications);
+      const json = JSON.stringify(backup, null, 2);
+      const blob = new Blob(["\\uFEFF", json], { type: "application/json;charset=utf-8" });
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = "job-agent-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      setNotice("JSON backup exported to your device. CV files and extracted CV text are not included.");
+      setBackupError("");
+    } catch {
+      setNotice("Could not create a backup in this browser.");
+    }
+  }
+
+  async function restoreJobAgentBackup() {
+    if (!backupFile || isRestoringBackup) return;
+    if (backupFile.size > 2 * 1024 * 1024) {
+      setBackupError("Backup file exceeds the 2 MB limit.");
+      return;
+    }
+    setIsRestoringBackup(true);
+    setBackupError("");
+    try {
+      const text = await backupFile.text();
+      const raw: unknown = JSON.parse(text);
+      const backup = parseJobAgentBackup(raw);
+      if (!backup) {
+        throw new Error("This backup is invalid, unsupported, or contains malformed records. No data was changed.");
+      }
+      if (!window.confirm(
+        "Restore this backup and replace the current Job Agent profile, saved roles, and application tracker? The action cannot be undone. CV files are not included."
+      )) {
+        return;
+      }
+
+      const storage = window.localStorage;
+      storage.setItem("job-agent.profile.v3", JSON.stringify(backup.profile));
+      storage.setItem("job-agent.shortlist.v1", JSON.stringify(backup.savedJobs));
+      storage.setItem("job-agent.applications.v1", JSON.stringify(backup.applications));
+
+      setCandidateName(backup.profile.candidateName);
+      setDraftLanguage(backup.profile.draftLanguage);
+      setSkillsText(backup.profile.skillsText);
+      setRolesText(backup.profile.rolesText);
+      setLevel(backup.profile.level);
+      setRemoteOnly(backup.profile.remoteOnly);
+      setMinimumScore(backup.profile.minimumScore);
+      setSavedJobs(backup.savedJobs);
+      setTrackedApplications(backup.applications);
+      setJobCategoryFilter("all");
+      setJobTypeFilter("all");
+      setPostedWithinFilter("any");
+      setSalaryOnlyFilter(false);
+      setSortMode("match");
+      setApplicationStatusFilter("all");
+      setShowSavedJobs(false);
+      setShowApplications(false);
+      setLiveJobs([]);
+      setShowLiveJobs(false);
+      setLiveError("");
+      setLiveWarning("");
+      setDraftForJob(null);
+      setDraftText("");
+      setAiConsent(false);
+      setAiDraftError("");
+      setBackupFile(null);
+      setBackupInputKey(current => current + 1);
+      setNotice("Backup restored successfully. CV files and extracted CV text were not restored.");
+    } catch (error) {
+      setBackupError(error instanceof Error ? error.message : "Could not read the backup. No complete restore was performed.");
+    } finally {
+      setIsRestoringBackup(false);
+    }
+  }
 
   function clearAllLocalJobAgentData() {
     if (!window.confirm("Clear this browser's saved Job Agent profile, shortlist, and application history? This cannot be undone.")) {
@@ -103,6 +199,9 @@ export default function HomePage() {
       setAiConsent(false);
       setIsAiDrafting(false);
       setAiDraftError("");
+      setBackupFile(null);
+      setBackupError("");
+      setBackupInputKey(current => current + 1);
       setNotice("Job Agent profile, saved roles, and application history cleared from this browser. Previously exported files and server-side records, if any, are not affected.");
     } catch {
       setNotice("Could not clear the app's local data. Browser storage may be restricted; review this browser's site data settings.");
@@ -555,6 +654,17 @@ export default function HomePage() {
         <input id="score" className="range" type="range" min={30} max={95} step={5} value={minimumScore} onChange={e => setMinimumScore(Number(e.target.value))}/>
         <button className="primary-button" onClick={saveProfileSettings}>Save profile settings</button>
         <button className="secondary-button" onClick={loadProfileSettings}>Load saved profile</button>
+        <div className="backup-controls">
+          <p>Backup and restore</p>
+          <small>Export your profile, saved roles, and application history to a JSON file. CV file bytes and extracted CV text are never included.</small>
+          <button className="secondary-button" type="button" onClick={exportJobAgentBackup}>Export JSON backup</button>
+          <label className="field-label" htmlFor="job-agent-backup-file">Restore from a Job Agent backup</label>
+          <input key={backupInputKey} id="job-agent-backup-file" className="backup-file-input" type="file" accept=".json,application/json" onChange={event => { setBackupFile(event.target.files?.[0] ?? null); setBackupError(""); }} />
+          {backupFile && <small>Selected: {backupFile.name} · {(backupFile.size / 1024).toFixed(1)} KB</small>}
+          <button className="primary-button" type="button" onClick={() => { void restoreJobAgentBackup(); }} disabled={!backupFile || isRestoringBackup}>{isRestoringBackup ? "Validating backup…" : "Validate and restore backup"}</button>
+          {backupError && <p className="inline-error" role="alert">{backupError}</p>}
+          <small>Import is validated before saving and asks for confirmation. Maximum file size: 2 MB. Restoring replaces current local profile/list/tracker data.</small>
+        </div>
         <div className="privacy-controls">
           <p>Privacy controls</p>
           <small>Clear this app’s browser-local profile, saved roles, and application history. A confirmation is required.</small>

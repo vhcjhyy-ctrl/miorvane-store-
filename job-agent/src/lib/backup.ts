@@ -1,0 +1,100 @@
+import { readApplicationTracker, type TrackedApplication } from "./application-tracker";
+import { readShortlist } from "./shortlist";
+import type { ExperienceLevel, Job } from "./scoring";
+
+export interface JobAgentProfileBackup {
+  schemaVersion: 3;
+  candidateName: string;
+  skillsText: string;
+  rolesText: string;
+  level: ExperienceLevel;
+  remoteOnly: boolean;
+  minimumScore: number;
+  draftLanguage: "en" | "ar";
+}
+
+export interface JobAgentBackup {
+  schemaVersion: 1;
+  exportedAt: string;
+  profile: JobAgentProfileBackup;
+  savedJobs: Job[];
+  applications: TrackedApplication[];
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function parseProfile(value: unknown): JobAgentProfileBackup | null {
+  if (!isRecord(value)) return null;
+  if (
+    value.schemaVersion !== 3
+    || typeof value.candidateName !== "string" || value.candidateName.length > 80
+    || typeof value.skillsText !== "string" || value.skillsText.length > 3000
+    || typeof value.rolesText !== "string" || value.rolesText.length > 3000
+    || (value.level !== "entry" && value.level !== "mid" && value.level !== "senior")
+    || typeof value.remoteOnly !== "boolean"
+    || typeof value.minimumScore !== "number" || value.minimumScore < 30 || value.minimumScore > 95 || value.minimumScore % 5 !== 0
+    || (value.draftLanguage !== "en" && value.draftLanguage !== "ar")
+  ) return null;
+
+  return {
+    schemaVersion: 3,
+    candidateName: value.candidateName,
+    skillsText: value.skillsText,
+    rolesText: value.rolesText,
+    level: value.level as ExperienceLevel,
+    remoteOnly: value.remoteOnly,
+    minimumScore: value.minimumScore,
+    draftLanguage: value.draftLanguage
+  };
+}
+
+/** Create a versioned JSON backup; CV bytes and extracted text are intentionally excluded. */
+export function createJobAgentBackup(
+  profile: JobAgentProfileBackup,
+  savedJobs: Job[],
+  applications: TrackedApplication[],
+  exportedAt = new Date().toISOString()
+): JobAgentBackup {
+  return {
+    schemaVersion: 1,
+    exportedAt,
+    profile: { ...profile },
+    savedJobs: [...savedJobs],
+    applications: [...applications]
+  };
+}
+
+/**
+ * Validate the entire backup before any storage mutation. If any record is unsafe,
+ * malformed, duplicated, or outside the current app schema, reject the whole import.
+ */
+export function parseJobAgentBackup(value: unknown): JobAgentBackup | null {
+  if (
+    !isRecord(value)
+    || value.schemaVersion !== 1
+    || typeof value.exportedAt !== "string"
+    || !Number.isFinite(Date.parse(value.exportedAt))
+    || !Array.isArray(value.savedJobs)
+    || !Array.isArray(value.applications)
+    || value.savedJobs.length > 100
+    || value.applications.length > 100
+  ) return null;
+
+  const profile = parseProfile(value.profile);
+  if (!profile) return null;
+
+  const savedJobs = readShortlist(JSON.stringify(value.savedJobs));
+  const applications = readApplicationTracker(JSON.stringify(value.applications));
+
+  if (savedJobs.length !== value.savedJobs.length || applications.length !== value.applications.length) return null;
+
+  return {
+    schemaVersion: 1,
+    exportedAt: new Date(value.exportedAt).toISOString(),
+    profile,
+    savedJobs,
+    applications
+  };
+}
