@@ -1,5 +1,5 @@
 import type { ExperienceLevel, Job } from "@/lib/scoring";
-import { extractKnownSkills } from "@/lib/remotive";
+import { extractKnownSkills } from "./remotive";
 
 type UnknownRecord = Record<string, unknown>;
 
