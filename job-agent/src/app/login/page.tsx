@@ -44,7 +44,7 @@ export default function LoginPage() {
         {!client ? (
           <div className="auth-config-notice" role="status">
             <strong>Authentication is not configured yet.</strong>
-            <p>Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to the deployment environment, then configure the allowed redirect URL in Supabase Auth. The dashboard remains in local-only demo mode until then.</p>
+            <p>Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY (or the legacy NEXT_PUBLIC_SUPABASE_ANON_KEY) to the deployment environment, then configure the allowed redirect URL in Supabase Auth. The dashboard remains in local-only demo mode until then.</p>
           </div>
         ) : (
           <form className="auth-form" onSubmit={sendMagicLink}>
