@@ -9,6 +9,7 @@ import { filterApplicationsByStatus, summarizeApplications, type ApplicationStat
 import { applicationTrackerToCsv } from "@/lib/application-export";
 import { extractResumeText } from "@/lib/cv-parser";
 import { extractKnownSkills } from "@/lib/remotive";
+import { analyzeCvJobFit, type CvJobFit } from "@/lib/cv-fit";
 import { filterAndSortMatches, type JobAgeFilter, type JobSortMode } from "@/lib/job-results";
 import { clearJobAgentLocalData } from "@/lib/local-data";
 import { readSavedJobSearches, upsertSavedJobSearch, removeSavedJobSearch, type JobSearchSource, type SavedJobSearch } from "@/lib/saved-searches";
@@ -297,6 +298,15 @@ export default function HomePage() {
     salaryOnly: salaryOnlyFilter,
     sortBy: sortMode
   }), [scoredMatches, jobCategoryFilter, jobTypeFilter, postedWithinFilter, salaryOnlyFilter, sortMode]);
+
+  const cvFitByJob = useMemo(() => {
+    const fits = new Map<string, CvJobFit>();
+    if (!resumeText.trim()) return fits;
+    for (const { job } of scoredMatches) {
+      fits.set(job.id, analyzeCvJobFit(resumeText, job));
+    }
+    return fits;
+  }, [resumeText, scoredMatches]);
 
   function resetJobFilters() {
     setJobCategoryFilter("all");
@@ -662,7 +672,7 @@ export default function HomePage() {
   return <main className="shell">
     <header className="topbar">
       <a className="brand" href="#"><span className="brand-mark">J</span> Job Agent</a>
-      <span className="phase-pill">PHASE 18 · SEARCH RELIABILITY</span>
+      <span className="phase-pill">PHASE 19 · CV KEYWORD FIT</span>
     </header>
     <section className="hero">
       <div>
@@ -873,6 +883,7 @@ export default function HomePage() {
         {matches.length === 0 && <div className="empty-state">{showApplications ? (trackedApplications.length === 0 ? "No applications being tracked yet. Open live or demo listings and select a status." : "No tracked roles meet your current score threshold. Lower the threshold or change your profile.") : showSavedJobs ? (savedJobs.length === 0 ? "No roles saved yet. Switch to live or demo listings and choose Save role." : "No saved roles meet your current score threshold. Lower the threshold or change your profile.") : showLiveJobs && isSearching ? "Searching for matching roles…" : showLiveJobs ? "No live listings meet this search and score threshold. Try another keyword or lower the threshold." : "No sample jobs meet this score and preference combination. Lower the threshold or change your profile."}</div>}
         {matches.map(({job, explanation}) => {
           const trackedRecord = trackedApplications.find(item => item.job.id === job.id);
+          const cvFit = cvFitByJob.get(job.id);
           return <article className="job-card" key={job.id}>
           <div className="job-card-top">
             <div className="company-avatar">{job.company.slice(0, 1) || "J"}</div>
@@ -894,6 +905,30 @@ export default function HomePage() {
               {explanation.missingSkills.length > 0 && <p><strong>Skills not listed in your profile:</strong> {explanation.missingSkills.join(", ")}</p>}
             </div>
           </details>
+          {resumeText.trim() && cvFit && <details className="cv-job-fit">
+            <summary>
+              <span>CV keyword comparison <small>LOCAL ONLY</small></span>
+              <strong>{cvFit.coveragePercent === null ? "Not enough keywords" : cvFit.coveragePercent + "% coverage"}</strong>
+            </summary>
+            <p className="cv-job-fit-note">A fixed-vocabulary keyword check of your extracted CV text. It is not an official ATS score and does not change the main match score.</p>
+            {cvFit.requiredSkills.length > 0
+              ? <div className="cv-fit-groups">
+                <div className="cv-fit-group">
+                  <strong>Found in CV text ({cvFit.matchedSkills.length})</strong>
+                  <div className="cv-fit-chips">{cvFit.matchedSkills.length
+                    ? cvFit.matchedSkills.map(skill => <span className="cv-fit-chip cv-fit-found" key={skill}>{skill}</span>)
+                    : <span className="cv-fit-empty">No recognized role keywords found in the extracted CV text.</span>}</div>
+                </div>
+                <div className="cv-fit-group">
+                  <strong>Not detected in CV text ({cvFit.missingSkills.length})</strong>
+                  <div className="cv-fit-chips">{cvFit.missingSkills.length
+                    ? cvFit.missingSkills.map(skill => <span className="cv-fit-chip cv-fit-missing" key={skill}>{skill}</span>)
+                    : <span className="cv-fit-empty">All recognized role keywords were found.</span>}</div>
+                </div>
+              </div>
+              : <p className="cv-fit-empty">No keywords from the current recognition list were detected in this listing. Review its original requirements.</p>}
+            <p className="cv-job-fit-note">“Not detected” does not mean you lack a skill: extraction, synonyms, and the limited vocabulary can miss relevant evidence. Review the CV and original listing manually.</p>
+          </details>}
           <div className="tracker-control">
             <label className="field-label" htmlFor={"application-status-" + job.id}>Application status</label>
             <select

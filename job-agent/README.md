@@ -1,4 +1,4 @@
-# Job Agent — Phase 18
+# Job Agent — Phase 19
 
 A starter workspace for a personal AI job application agent. This folder is intentionally isolated from the existing store project.
 
@@ -9,6 +9,7 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Browser-local saved job searches with one-click rerun by source; searches do not run automatically
 - Versioned JSON backup/restore for the profile, saved searches, shortlist and application tracker, with full validation, a 2 MB cap and restore confirmation; CV bytes/text excluded
 - Browser-local text extraction for PDF, DOCX, and TXT, with size/page/character limits and reviewable skill suggestions
+- Per-listing local CV keyword comparison showing recognized matched and not-detected skills; informational only, not an official ATS score and separate from the match score
 - Live job search through the public Remotive feed and Arbeitnow's public feed, plus local sample listings; selectable provider, balanced result merge, basic cross-provider duplicate suppression, and explicit source attribution
 - Client-side category, employment type, publication-age and salary-availability filters, plus match/newest/company sorting
 - Explainable match scoring with matched skills, missing skills, and role/experience reasons
@@ -19,7 +20,7 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Export tracked applications as CSV with spreadsheet-formula injection protection
 - Bilingual Arabic/English cover-letter templates and optional OpenAI Responses API drafts, disabled by default and guarded by explicit consent
 - Streaming request-body size limit and UTF-8 validation for the optional AI endpoint, with targeted tests
-- Vitest suites for scoring, result filters/sorting, multi-source merge/deduplication, live job API route integration, bounded request-body parsing, backup validation/round-trip, application dashboard summaries/status filtering, app-local data cleanup, saved-search validation/upsert/removal, Remotive and Arbeitnow normalization, browser-local shortlist, application tracking, CSV export, English/Arabic cover-letter drafts, and local CV extraction
+- Vitest suites for scoring, result filters/sorting, multi-source merge/deduplication, live job API route integration, bounded request-body parsing, backup validation/round-trip, application dashboard summaries/status filtering, app-local data cleanup, saved-search validation/upsert/removal, Remotive and Arbeitnow normalization, browser-local shortlist, application tracking, CSV export, English/Arabic cover-letter drafts, and local CV extraction and CV-to-job keyword comparison
 - GitHub Actions runs ESLint, unit tests, a production build, Docker image build, Compose configuration validation, and a real container health smoke test; provider-route integration tests cover partial outages, malformed feeds, source selection, and result limits
 - Multi-stage Docker image, loopback-only Docker Compose port by default, and a secret-free health endpoint
 - Supabase migration draft now enables RLS on job sources and jobs, exposing only active, unexpired jobs to authenticated users
