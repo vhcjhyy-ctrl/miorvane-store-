@@ -19,7 +19,7 @@ describe("cover letter draft builder", () => {
     expect(draft).not.toMatch(/\b(?:degree|certified|five years|5 years|managed a team)\b/i);
   });
 
-  it("creates an Arabic draft using only supplied candidate details", () => {
+  it("creates an Arabic draft with real paragraph and sign-off line breaks", () => {
     const draft = buildCoverLetterDraft({
       candidateName: "أحمد محمد",
       targetRoles: ["مطور بايثون"],
@@ -34,7 +34,9 @@ describe("cover letter draft builder", () => {
     expect(draft).toContain("مطور بايثون مبتدئ");
     expect(draft).toContain("Example Systems");
     expect(draft).toContain("Python، Git");
-    expect(draft).not.toMatch(/\\b(?:degree|certified|five years|5 years|managed a team)\\b/i);
+    expect(draft).toContain("مع خالص التحية،\nأحمد محمد");
+    expect(draft.split("\n\n").length).toBeGreaterThanOrEqual(5);
+    expect(draft).not.toMatch(/\b(?:degree|certified|five years|5 years|managed a team)\b/i);
   });
 
   it("uses a clear name placeholder and remains useful when the profile is sparse", () => {
@@ -47,6 +49,19 @@ describe("cover letter draft builder", () => {
     expect(draft).toContain("[Your name]");
     expect(draft).toContain("Support Engineer");
     expect(draft).toContain("current skill set");
+  });
+
+  it("uses an Arabic name placeholder for sparse Arabic profiles", () => {
+    const draft = buildCoverLetterDraft({
+      targetRoles: [],
+      skills: [],
+      jobTitle: "",
+      company: "",
+      language: "ar"
+    });
+    expect(draft).toContain("[اسمك]");
+    expect(draft).toContain("الوظيفة المعلن عنها");
+    expect(draft).toContain("فريقكم");
   });
 
   it("removes line breaks and control characters from single-line fields", () => {

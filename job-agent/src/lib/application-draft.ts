@@ -55,10 +55,10 @@ export function buildCoverLetterDraft(input: CoverLetterDraftInput): string {
     paragraphs.push(
       "يسعدني معرفة المزيد عن أولويات فريقكم ومناقشة مدى ملاءمة مهاراتي الحالية للوظيفة.",
       "شكرًا لوقتكم واهتمامكم.",
-      "مع خالص التحية،\\n" + name
+      "مع خالص التحية،\n" + name
     );
 
-    return paragraphs.join("\\n\\n");
+    return paragraphs.join("\n\n");
   }
 
   const paragraphs = [
