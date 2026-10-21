@@ -1,4 +1,4 @@
-# Job Agent — Phase 21
+# Job Agent — Phase 23
 
 A starter workspace for a personal AI job application agent. This folder is intentionally isolated from the existing store project.
 
@@ -9,6 +9,7 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Supabase-backed public job catalog with GIN full-text search, filters for enabled sources and active/unexpired roles, and source metadata that omits private configuration
 - Protected scheduled job-catalog ingestion endpoint with a server-only service-role client, per-source status, idempotent upserts, safe partial-failure handling, and audit summaries
 - GitHub Actions workflow scheduled every six hours; it skips until deployment origin and cron credentials are configured
+- Container release workflow publishes a versioned GHCR image after changes reach `main`; it compiles only public Supabase browser settings and never embeds the service-role key
 - Candidate preferences retain local save/load and can be manually synced to a signed-in account; local-only mode remains available
 - Privacy control to clear only Job Agent-owned local storage keys, including saved searches, with confirmation and tests
 - Browser-local saved job searches with one-click rerun by source; searches do not run automatically
@@ -28,7 +29,7 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Vitest suites for scoring, result filters/sorting, multi-source merge/deduplication, live job API route integration, bounded request-body parsing, backup validation/round-trip, application dashboard summaries/status filtering, app-local data cleanup, saved-search validation/upsert/removal, Remotive and Arbeitnow normalization, browser-local shortlist, application tracking, CSV export, English/Arabic cover-letter drafts, and local CV extraction and CV-to-job keyword comparison
 - GitHub Actions runs ESLint, unit tests, a production build, Docker image build, Compose configuration validation, and a real container health smoke test; provider-route integration tests cover partial outages, malformed feeds, source selection, and result limits
 - Multi-stage Docker image, loopback-only Docker Compose port by default, and a secret-free health endpoint
-- Supabase migration draft now enables RLS on job sources and jobs, exposing only active, unexpired jobs to authenticated users
+- Supabase migrations enable RLS on private workspace rows and restrict public catalog reads to active, unexpired jobs plus enabled-source metadata; private source configuration is not granted to anon users
 - Initial Supabase SQL schema and RLS policies
 
 ## Integration status and limitations
@@ -37,7 +38,9 @@ The Supabase cloud workspace integration is now implemented in code, but it is *
 
 The public browser key is not a secret; never commit a service-role key. Docker compiles `NEXT_PUBLIC_*` settings into the browser bundle, so pass the right values as build args when creating the image and rebuild after changing them. The `.env.example` file contains placeholders only.
 
-The CV file and extracted CV text are excluded from cloud workspace sync, JSON backup, and AI requests. CV parsing remains local and scanned/image-only PDFs do not get OCR. Live job discovery uses Remotive and Arbeitnow. Browser search can query the upstream feeds or the Supabase catalog, which returns only active, unexpired rows from enabled sources. Scheduled ingestion persists up to 50 validated jobs per source each run. Configure server-only `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, plus a `JOB_SYNC_CRON_SECRET` of at least 32 characters. Set GitHub repository variable `JOB_AGENT_BASE_URL` to the deployed HTTPS origin and Actions secret `JOB_SYNC_CRON_SECRET` to the same token. The scheduled workflow skips safely until those GitHub settings are present. See `docs/job-ingestion.md`. The optional OpenAI Responses API route stays disabled by default and requires server-side configuration, an authenticated account, and explicit user consent. Its included in-process limiter is best-effort, not a production shared rate limiter. Gmail OAuth, email sending, scheduled searches, and application submission are still not implemented.
+The CV file and extracted CV text are excluded from cloud workspace sync, JSON backup, and AI requests. CV parsing remains local and scanned/image-only PDFs do not get OCR. Live job discovery uses Remotive and Arbeitnow. Browser search can query the upstream feeds or the Supabase catalog, which returns only active, unexpired rows from enabled sources. Scheduled ingestion persists up to 50 validated jobs per source each run. Configure server-only `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, plus a `JOB_SYNC_CRON_SECRET` of at least 32 characters. Set GitHub repository variable `JOB_AGENT_BASE_URL` to the deployed HTTPS origin and Actions secret `JOB_SYNC_CRON_SECRET` to the same token. The scheduled workflow skips safely until those GitHub settings are present. See `docs/job-ingestion.md`.
+
+After merging to `main`, `.github/workflows/job-agent-release.yml` builds and publishes `ghcr.io/vhcjhyy-ctrl/job-agent` with a commit-SHA tag and `latest`, plus SBOM and provenance metadata. Configure repository variables `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` before publishing an image intended for a real Supabase project. This workflow publishes a container; it does not deploy it to a hosting provider. The service-role key and cron secret are runtime settings only and are never passed as Docker build arguments. The optional OpenAI Responses API route stays disabled by default and requires server-side configuration, an authenticated account, and explicit user consent. Its included in-process limiter is best-effort, not a production shared rate limiter. Gmail OAuth, email sending, scheduled searches, and application submission are still not implemented.
 
 The migration files are reviewed source code only; neither migration has been applied to an external Supabase project from this workspace. Test row-level security with two separate accounts before using real candidate data.
  

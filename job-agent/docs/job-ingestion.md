@@ -10,7 +10,7 @@ This worker ingests up to 50 validated listings from each public provider per ru
 
 The endpoint is `POST /api/internal/jobs/sync` with `Authorization: Bearer <JOB_SYNC_CRON_SECRET>`. Public catalog reads use `GET /api/jobs/catalog` and require the public Supabase URL/key plus migration 0003. It returns 503 if required configuration is missing, and 401 for an invalid token. The token is compared using fixed-length SHA-256 digests and the route never returns or logs the key.
 
-The scheduled GitHub Actions workflow expects repository variable `JOB_AGENT_BASE_URL` and Actions secret `JOB_SYNC_CRON_SECRET`. It safely skips the run if either is missing. Configure that variable to the HTTPS origin of the deployed Job Agent (no trailing path). The deployed application also needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in its hosting environment.
+The scheduled GitHub Actions workflow runs every six hours and expects repository variable `JOB_AGENT_BASE_URL` and Actions secret `JOB_SYNC_CRON_SECRET`. It safely skips the run if either is missing. Configure that variable to the HTTPS origin of the deployed Job Agent (no trailing path). For the container release, merge to `main`; the release workflow publishes a versioned image to `ghcr.io/vhcjhyy-ctrl/job-agent`. The deployed application also needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in its hosting environment.
 
 ## What the worker does
 
