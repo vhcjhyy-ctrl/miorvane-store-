@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getAuthenticatedUser } from "../../../../lib/supabase/auth";
 import { readBoundedRequestBody } from "../../../../lib/bounded-request-body";
 import {
   AI_COVER_LETTER_INSTRUCTIONS,
@@ -59,6 +60,14 @@ export async function POST(request: Request) {
       "The app owner must configure OPENAI_MODEL before AI cover-letter generation can be used. No request was sent.",
       503
     );
+  }
+
+  const auth = await getAuthenticatedUser();
+  if (!auth.configured) {
+    return jsonError("Authentication is not configured. The AI endpoint remains unavailable until the app owner connects Supabase Auth.", 503);
+  }
+  if (!auth.user) {
+    return jsonError("Sign in with a verified Job Agent account before requesting an AI draft.", 401);
   }
 
   const contentLength = Number(request.headers.get("content-length") ?? "0");

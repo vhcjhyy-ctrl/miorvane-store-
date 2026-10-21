@@ -14,6 +14,7 @@ import { filterAndSortMatches, type JobAgeFilter, type JobSortMode } from "@/lib
 import { clearJobAgentLocalData } from "@/lib/local-data";
 import { readSavedJobSearches, upsertSavedJobSearch, removeSavedJobSearch, type JobSearchSource, type SavedJobSearch } from "@/lib/saved-searches";
 import { createJobAgentBackup, parseJobAgentBackup, restoreJobAgentBackupToStorage } from "@/lib/backup";
+import { AuthControls } from "@/components/auth-controls";
 
 const sampleJobs: Job[] = [
   { id: "demo-1", title: "Junior Python Developer", company: "Northstar Systems", location: "Remote — Worldwide", remote: true, skills: ["Python", "SQL", "Git"], level: "entry", description: "Support backend services, write Python code, and work with relational databases.", url: "https://example.com/jobs/demo-1" },
@@ -672,7 +673,7 @@ export default function HomePage() {
   return <main className="shell">
     <header className="topbar">
       <a className="brand" href="#"><span className="brand-mark">J</span> Job Agent</a>
-      <span className="phase-pill">PHASE 19 · CV KEYWORD FIT</span>
+      <div className="topbar-actions"><span className="phase-pill">PHASE 20 · SECURE SIGN-IN</span><AuthControls /></div>
     </header>
     <section className="hero">
       <div>

@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
+import { getAuthenticatedUser } from "../../../../lib/supabase/auth";
+
+vi.mock("../../../../lib/supabase/auth", () => ({ getAuthenticatedUser: vi.fn() }));
 
 const validPayload = {
   consentConfirmed: true,
@@ -39,6 +42,7 @@ describe("AI cover-letter API route", () => {
     vi.stubEnv("OPENAI_API_KEY", "test-only-key");
     vi.stubEnv("OPENAI_MODEL", "test-model-id");
     vi.stubGlobal("fetch", vi.fn(async () => successfulUpstreamResponse()));
+    vi.mocked(getAuthenticatedUser).mockResolvedValue({ configured: true, user: { id: "test-user" } });
   });
 
   afterEach(() => {
@@ -58,6 +62,20 @@ describe("AI cover-letter API route", () => {
     vi.stubEnv("OPENAI_MODEL", "");
     const response = await POST(makeRequest(validPayload, "203.0.113.112"));
     expect(response.status).toBe(503);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when Supabase Auth is not configured", async () => {
+    vi.mocked(getAuthenticatedUser).mockResolvedValue({ configured: false, user: null });
+    const response = await POST(makeRequest(validPayload, "203.0.113.118"));
+    expect(response.status).toBe(503);
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it("rejects requests without a verified user session", async () => {
+    vi.mocked(getAuthenticatedUser).mockResolvedValue({ configured: true, user: null });
+    const response = await POST(makeRequest(validPayload, "203.0.113.119"));
+    expect(response.status).toBe(401);
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 
