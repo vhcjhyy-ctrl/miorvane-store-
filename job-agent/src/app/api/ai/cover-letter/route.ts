@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { readBoundedRequestBody } from "@/lib/bounded-request-body";
+import { readBoundedRequestBody } from "../../../../lib/bounded-request-body";
 import {
   AI_COVER_LETTER_INSTRUCTIONS,
   buildAiCoverLetterInput,
   extractResponsesText,
   parseAiCoverLetterRequest
-} from "@/lib/ai-cover-letter";
+} from "../../../../lib/ai-cover-letter";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,6 +53,13 @@ export async function POST(request: Request) {
       503
     );
   }
+  const configuredModel = process.env.OPENAI_MODEL?.trim();
+  if (!configuredModel) {
+    return jsonError(
+      "The app owner must configure OPENAI_MODEL before AI cover-letter generation can be used. No request was sent.",
+      503
+    );
+  }
 
   const contentLength = Number(request.headers.get("content-length") ?? "0");
   if (Number.isFinite(contentLength) && contentLength > MAX_REQUEST_BYTES) {
@@ -92,7 +99,7 @@ export async function POST(request: Request) {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: process.env.OPENAI_MODEL?.trim() || "gpt-6-luna",
+        model: configuredModel,
         instructions: AI_COVER_LETTER_INSTRUCTIONS,
         input: buildAiCoverLetterInput(input),
         max_output_tokens: 1200,
@@ -111,7 +118,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       draft,
-      model: process.env.OPENAI_MODEL?.trim() || "gpt-6-luna",
+      model: configuredModel,
       notice: "AI-generated text may be inaccurate; review it before use. No application or email was sent."
     });
   } catch {
