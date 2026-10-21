@@ -13,7 +13,11 @@ export interface TrackedApplication {
   job: Job;
   status: ApplicationStatus;
   updatedAt: string;
+  notes?: string;
+  followUpDate?: string;
 }
+
+export type ApplicationDetailField = "notes" | "followUpDate";
 
 const MAX_TRACKED_APPLICATIONS = 100;
 const allowedStatuses = new Set<ApplicationStatus>([
@@ -54,6 +58,13 @@ function isApplicationStatus(value: unknown): value is ApplicationStatus {
   return typeof value === "string" && allowedStatuses.has(value as ApplicationStatus);
 }
 
+function isDateOnly(value: unknown): value is string {
+  if (typeof value !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
+  const parsed = new Date(value + "T00:00:00.000Z");
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+
 /** Parse browser-local tracking data defensively. Corrupt or stale records are skipped. */
 export function readApplicationTracker(raw: string | null): TrackedApplication[] {
   if (!raw) return [];
@@ -68,11 +79,15 @@ export function readApplicationTracker(raw: string | null): TrackedApplication[]
         || !isApplicationStatus(item.status)
         || typeof item.updatedAt !== "string"
         || !Number.isFinite(Date.parse(item.updatedAt))
+        || (item.notes !== undefined && (typeof item.notes !== "string" || item.notes.length > 2000))
+        || (item.followUpDate !== undefined && !isDateOnly(item.followUpDate))
       ) continue;
       unique.set(item.job.id, {
         job: item.job,
         status: item.status,
-        updatedAt: new Date(item.updatedAt).toISOString()
+        updatedAt: new Date(item.updatedAt).toISOString(),
+        ...(typeof item.notes === "string" ? { notes: item.notes } : {}),
+        ...(typeof item.followUpDate === "string" ? { followUpDate: item.followUpDate } : {})
       });
     }
     return Array.from(unique.values()).slice(-MAX_TRACKED_APPLICATIONS);
@@ -88,8 +103,43 @@ export function updateApplicationTracker(
   status: ApplicationStatus | "",
   updatedAt = new Date().toISOString()
 ): TrackedApplication[] {
+  const previous = applications.find(item => item.job.id === job.id);
   const remaining = applications.filter(item => item.job.id !== job.id);
   if (status === "") return remaining;
-  const next: TrackedApplication = { job, status, updatedAt: new Date(updatedAt).toISOString() };
+  const next: TrackedApplication = {
+    job,
+    status,
+    updatedAt: new Date(updatedAt).toISOString(),
+    ...(previous?.notes !== undefined ? { notes: previous.notes } : {}),
+    ...(previous?.followUpDate !== undefined ? { followUpDate: previous.followUpDate } : {})
+  };
   return [...remaining, next].slice(-MAX_TRACKED_APPLICATIONS);
+}
+
+/** Update a tracked role's notes or date-only follow-up field without changing its status. */
+export function updateTrackedApplicationDetails(
+  applications: TrackedApplication[],
+  job: Job,
+  field: ApplicationDetailField,
+  value: string,
+  updatedAt = new Date().toISOString()
+): TrackedApplication[] {
+  const previous = applications.find(item => item.job.id === job.id);
+  if (!previous) return applications;
+
+  const updated: TrackedApplication = {
+    ...previous,
+    job,
+    updatedAt: new Date(updatedAt).toISOString()
+  };
+  if (field === "notes") {
+    updated.notes = value.replace(/\\u0000/g, "").slice(0, 2000);
+  } else if (value === "") {
+    delete updated.followUpDate;
+  } else if (isDateOnly(value)) {
+    updated.followUpDate = value;
+  } else {
+    return applications;
+  }
+  return applications.map(item => item.job.id === job.id ? updated : item);
 }

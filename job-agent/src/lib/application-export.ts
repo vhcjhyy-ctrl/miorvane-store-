@@ -8,6 +8,8 @@ const HEADERS = [
   "location",
   "salary",
   "published_at",
+  "follow_up_date",
+  "notes",
   "source",
   "job_url"
 ] as const;
@@ -30,6 +32,8 @@ export function applicationTrackerToCsv(applications: TrackedApplication[]): str
     job.location,
     job.salary ?? "",
     job.publishedAt ?? "",
+    application.followUpDate ?? "",
+    application.notes ?? "",
     job.source ?? "",
     job.url
   ]);

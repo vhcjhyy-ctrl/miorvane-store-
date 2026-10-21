@@ -20,7 +20,9 @@ const job: Job = {
 const application: TrackedApplication = {
   job,
   status: "applied",
-  updatedAt: "2026-10-21T12:00:00.000Z"
+  updatedAt: "2026-10-21T12:00:00.000Z",
+  notes: "Recruiter asked for availability",
+  followUpDate: "2026-10-28"
 };
 
 describe("application tracker CSV export", () => {
@@ -35,6 +37,8 @@ describe("application tracker CSV export", () => {
     expect(csv).toContain('"Example, ""Systems"""');
     expect(csv).toContain('"$80k–$100k"');
     expect(csv).toContain('"applied"');
+    expect(csv).toContain('"2026-10-28"');
+    expect(csv).toContain('"Recruiter asked for availability"');
   });
 
   it("neutralizes spreadsheet formula prefixes in exported text cells", () => {
