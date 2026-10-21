@@ -36,10 +36,12 @@ export default function HomePage() {
   const [sortMode, setSortMode] = useState<JobSortMode>("match");
   const [notice, setNotice] = useState("");
   const [liveQuery, setLiveQuery] = useState("Python developer");
+  const [jobSource, setJobSource] = useState<"all" | "remotive" | "arbeitnow">("all");
   const [liveJobs, setLiveJobs] = useState<Job[]>([]);
   const [showLiveJobs, setShowLiveJobs] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [liveError, setLiveError] = useState("");
+  const [liveWarning, setLiveWarning] = useState("");
   const [liveFetchedAt, setLiveFetchedAt] = useState("");
   const [savedJobs, setSavedJobs] = useState<Job[]>([]);
   const [showSavedJobs, setShowSavedJobs] = useState(false);
@@ -199,7 +201,7 @@ export default function HomePage() {
     setIsSearching(true);
     setLiveError("");
     try {
-      const response = await fetch(`/api/jobs?q=${encodeURIComponent(query)}&limit=40`, {
+      const response = await fetch(`/api/jobs?q=${encodeURIComponent(query)}&limit=40&source=${jobSource}`, {
         headers: { Accept: "application/json" }
       });
       const payload: unknown = await response.json();
@@ -212,6 +214,10 @@ export default function HomePage() {
         throw new Error("The job source returned an unexpected response.");
       }
       setLiveJobs(payload.jobs as Job[]);
+      const warnings = "warnings" in payload && Array.isArray(payload.warnings)
+        ? payload.warnings.filter((warning): warning is string => typeof warning === "string")
+        : [];
+      setLiveWarning(warnings.join(" "));
       setShowApplications(false);
       setShowSavedJobs(false);
       setShowLiveJobs(true);
@@ -219,6 +225,7 @@ export default function HomePage() {
       setNotice("");
     } catch (error) {
       setShowLiveJobs(true);
+      setLiveWarning("");
       setLiveError(error instanceof Error ? error.message : "Could not load live jobs. Please try again.");
     } finally {
       setIsSearching(false);
@@ -285,6 +292,7 @@ export default function HomePage() {
     setShowSavedJobs(false);
     setShowLiveJobs(false);
     setLiveError("");
+    setLiveWarning("");
   }
 
   function loadSavedJobs() {
@@ -493,8 +501,8 @@ export default function HomePage() {
       : showSavedJobs
         ? <div className="notice"><strong>Saved roles:</strong> these records are stored only in this browser. Nothing is uploaded or submitted.</div>
         : showLiveJobs
-          ? <div className="notice"><strong>Live-source mode:</strong> listings are retrieved from Remotive and cached server-side for up to six hours. The source may delay listings by up to 24 hours. Matching is heuristic; always review the original listing.</div>
-          : <div className="notice"><strong>Demo mode:</strong> sample listings are examples. Use the live search below to query the public Remotive feed. No application is submitted and no email is sent.</div>}
+          ? <div className="notice"><strong>Live-source mode:</strong> results use {jobSource === "all" ? "Remotive and Arbeitnow" : jobSource === "remotive" ? "Remotive" : "Arbeitnow"} public listings with source-specific caching. Jobs may be stale or location-restricted; check the original listing and work-authorization requirements.</div>
+          : <div className="notice"><strong>Demo mode:</strong> sample listings are examples. Choose a public source below for live results. No application is submitted and no email is sent.</div>}
     {notice && <p className="inline-notice" role="status">{notice}</p>}
 
     <div className="layout">
@@ -559,7 +567,14 @@ export default function HomePage() {
               <input id="live-query" value={liveQuery} onChange={e => setLiveQuery(e.target.value)} maxLength={80} placeholder="Python developer, data analyst, cybersecurity"/>
               <button className="primary-button live-submit" type="submit" disabled={isSearching}>{isSearching ? "Searching…" : "Search live jobs"}</button>
             </div>
-            <p className="source-disclaimer">Source: <a href="https://remotive.com/remote-jobs/api" target="_blank" rel="noreferrer">Remotive public API</a>. Results are cached up to six hours; the source recommends no more than four upstream requests per day. Links credit and lead back to Remotive.</p>
+            <label className="job-source-selector" htmlFor="job-source">Job source
+              <select id="job-source" value={jobSource} onChange={event => setJobSource(event.target.value as "all" | "remotive" | "arbeitnow")}>
+                <option value="all">Both sources</option>
+                <option value="remotive">Remotive — remote jobs</option>
+                <option value="arbeitnow">Arbeitnow — Germany & Europe</option>
+              </select>
+            </label>
+            <p className="source-disclaimer">Sources: {jobSource !== "arbeitnow" && <><a href="https://remotive.com/remote-jobs/api" target="_blank" rel="noreferrer">Remotive API</a>{jobSource === "all" ? " · " : ""}</>}{jobSource !== "remotive" && <a href="https://www.arbeitnow.com" target="_blank" rel="noreferrer">Arbeitnow API</a>}. Results are cached server-side; listings link back to the original source.</p>
           </form>
           <div className="source-mode-actions">
             <button className="secondary-button" type="button" onClick={loadSavedJobs}>Saved roles ({savedJobs.length})</button>
@@ -593,6 +608,7 @@ export default function HomePage() {
             </div>
           </section>}
           {liveError && <p className="inline-error" role="alert">{liveError}</p>}
+          {liveWarning && <p className="inline-warning" role="status">{liveWarning}</p>}
           {showLiveJobs && liveFetchedAt && <p className="retrieved-note">Fetched by this session: {new Date(liveFetchedAt).toLocaleString()} · source data may be cached.</p>}
         </div>
         <p className="subheading">{showApplications ? "Your tracked applications ranked against your current candidate profile." : showSavedJobs ? "Your browser-local shortlist ranked against your current candidate profile." : showLiveJobs ? "Live-source results ranked against your current candidate profile." : "Sample listings scored against your current profile."}</p>
@@ -701,7 +717,7 @@ export default function HomePage() {
             <div className="job-card-actions">
               <button className="secondary-button save-role-button" type="button" onClick={() => toggleSavedJob(job)}>{savedJobs.some(item => item.id === job.id) ? "Remove saved" : "Save role"}</button>
               <button className="secondary-button draft-trigger" type="button" onClick={() => createCoverLetterDraft(job)}>Draft cover letter</button>
-              <a href={job.url} target="_blank" rel="noreferrer">{job.source === "Remotive" ? "View on Remotive ↗" : "Example listing ↗"}</a>
+              <a href={job.url} target="_blank" rel="noreferrer">{job.source === "Remotive" ? "View on Remotive ↗" : job.source === "Arbeitnow" ? "View on Arbeitnow ↗" : "Example listing ↗"}</a>
             </div>
           </div>
         </article>;
