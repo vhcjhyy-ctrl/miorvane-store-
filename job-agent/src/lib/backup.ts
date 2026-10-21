@@ -1,5 +1,6 @@
 import { readApplicationTracker, type TrackedApplication } from "./application-tracker";
 import { readShortlist } from "./shortlist";
+import { readSavedJobSearches, type SavedJobSearch } from "./saved-searches";
 import { JOB_AGENT_LOCAL_STORAGE_KEYS } from "./local-data";
 import type { ExperienceLevel, Job } from "./scoring";
 
@@ -15,11 +16,12 @@ export interface JobAgentProfileBackup {
 }
 
 export interface JobAgentBackup {
-  schemaVersion: 1;
+  schemaVersion: 2;
   exportedAt: string;
   profile: JobAgentProfileBackup;
   savedJobs: Job[];
   applications: TrackedApplication[];
+  savedSearches: SavedJobSearch[];
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -56,14 +58,16 @@ export function createJobAgentBackup(
   profile: JobAgentProfileBackup,
   savedJobs: Job[],
   applications: TrackedApplication[],
+  savedSearches: SavedJobSearch[] = [],
   exportedAt = new Date().toISOString()
 ): JobAgentBackup {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     exportedAt,
     profile: { ...profile },
     savedJobs: [...savedJobs],
-    applications: [...applications]
+    applications: [...applications],
+    savedSearches: [...savedSearches]
   };
 }
 
@@ -74,13 +78,14 @@ export function createJobAgentBackup(
 export function parseJobAgentBackup(value: unknown): JobAgentBackup | null {
   if (
     !isRecord(value)
-    || value.schemaVersion !== 1
+    || (value.schemaVersion !== 1 && value.schemaVersion !== 2)
     || typeof value.exportedAt !== "string"
     || !Number.isFinite(Date.parse(value.exportedAt))
     || !Array.isArray(value.savedJobs)
     || !Array.isArray(value.applications)
     || value.savedJobs.length > 100
     || value.applications.length > 100
+    || (value.schemaVersion === 2 && (!Array.isArray(value.savedSearches) || value.savedSearches.length > 20))
   ) return null;
 
   const profile = parseProfile(value.profile);
@@ -91,12 +96,18 @@ export function parseJobAgentBackup(value: unknown): JobAgentBackup | null {
 
   if (savedJobs.length !== value.savedJobs.length || applications.length !== value.applications.length) return null;
 
+  const savedSearches = value.schemaVersion === 1
+    ? []
+    : readSavedJobSearches(JSON.stringify(value.savedSearches));
+  if (value.schemaVersion === 2 && savedSearches.length !== (value.savedSearches as unknown[]).length) return null;
+
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     exportedAt: new Date(value.exportedAt).toISOString(),
     profile,
     savedJobs,
-    applications
+    applications,
+    savedSearches
   };
 }
 
@@ -121,6 +132,7 @@ export function restoreJobAgentBackupToStorage(storage: JobAgentBackupStorage, b
     storage.setItem("job-agent.profile.v3", JSON.stringify(backup.profile));
     storage.setItem("job-agent.shortlist.v1", JSON.stringify(backup.savedJobs));
     storage.setItem("job-agent.applications.v1", JSON.stringify(backup.applications));
+    storage.setItem("job-agent.saved-searches.v1", JSON.stringify(backup.savedSearches));
     storage.removeItem("job-agent.profile.v2");
     storage.removeItem("job-agent.profile.v1");
   } catch (error) {

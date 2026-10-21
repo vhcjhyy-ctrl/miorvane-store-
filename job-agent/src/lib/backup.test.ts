@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { createJobAgentBackup, parseJobAgentBackup, restoreJobAgentBackupToStorage, type JobAgentBackupStorage, type JobAgentProfileBackup } from "./backup";
 import type { TrackedApplication } from "./application-tracker";
 import type { Job } from "./scoring";
+import type { SavedJobSearch } from "./saved-searches";
 
 const profile: JobAgentProfileBackup = {
   schemaVersion: 3,
@@ -24,6 +25,13 @@ const job: Job = {
   url: "https://remotive.com/remote-jobs/product/python-dev",
   source: "Remotive"
 };
+const savedSearch: SavedJobSearch = {
+  id: "search-python",
+  name: "Remote Python",
+  query: "Python Developer",
+  source: "all",
+  createdAt: "2026-10-21T09:00:00.000Z"
+};
 const application: TrackedApplication = {
   job: { ...job, id: "r2" },
   status: "interview",
@@ -34,13 +42,14 @@ const application: TrackedApplication = {
 
 describe("Job Agent JSON backup", () => {
   it("round-trips the profile, saved jobs and tracked application fields", () => {
-    const backup = createJobAgentBackup(profile, [job], [application], "2026-10-21T12:00:00.000Z");
+    const backup = createJobAgentBackup(profile, [job], [application], [savedSearch], "2026-10-21T12:00:00.000Z");
     const parsed = parseJobAgentBackup(JSON.parse(JSON.stringify(backup)));
     expect(parsed).not.toBeNull();
     expect(parsed?.profile.draftLanguage).toBe("ar");
     expect(parsed?.savedJobs.map(item => item.id)).toEqual(["r1"]);
     expect(parsed?.applications[0].notes).toBe("Second interview");
     expect(parsed?.applications[0].followUpDate).toBe("2026-10-30");
+    expect(parsed?.savedSearches).toEqual([savedSearch]);
   });
 
   it("rejects the entire backup if a profile is malformed", () => {
@@ -101,13 +110,37 @@ describe("Job Agent JSON backup", () => {
       setItem(key, value) { data.set(key, value); },
       removeItem(key) { data.delete(key); }
     };
-    const backup = createJobAgentBackup(profile, [job], [application]);
+    const backup = createJobAgentBackup(profile, [job], [application], [savedSearch]);
     restoreJobAgentBackupToStorage(storage, backup);
     expect(JSON.parse(data.get("job-agent.profile.v3") ?? "null")).toEqual(profile);
     expect(JSON.parse(data.get("job-agent.shortlist.v1") ?? "null")).toHaveLength(1);
     expect(JSON.parse(data.get("job-agent.applications.v1") ?? "null")).toHaveLength(1);
+    expect(JSON.parse(data.get("job-agent.saved-searches.v1") ?? "null")).toHaveLength(1);
     expect(data.has("job-agent.profile.v2")).toBe(false);
     expect(data.has("job-agent.profile.v1")).toBe(false);
+  });
+
+  it("imports legacy v1 backups with an empty saved-search list", () => {
+    const modern = createJobAgentBackup(profile, [job], [application], [savedSearch]);
+    const legacyPayload = {
+      schemaVersion: 1,
+      exportedAt: modern.exportedAt,
+      profile: modern.profile,
+      savedJobs: modern.savedJobs,
+      applications: modern.applications
+    };
+    const parsed = parseJobAgentBackup(legacyPayload);
+    expect(parsed?.schemaVersion).toBe(2);
+    expect(parsed?.savedSearches).toEqual([]);
+  });
+
+  it("rejects malformed or over-limit saved-search records", () => {
+    const backup = createJobAgentBackup(profile, [], [], [savedSearch]);
+    expect(parseJobAgentBackup({ ...backup, savedSearches: [{ ...savedSearch, source: "unknown" }] })).toBeNull();
+    expect(parseJobAgentBackup({
+      ...backup,
+      savedSearches: Array.from({ length: 21 }, (_, index) => ({ ...savedSearch, id: "s" + index, query: "Query " + index }))
+    })).toBeNull();
   });
 
   it("rejects unsupported schema versions and malformed export dates", () => {

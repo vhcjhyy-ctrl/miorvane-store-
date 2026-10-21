@@ -11,6 +11,7 @@ import { extractResumeText } from "@/lib/cv-parser";
 import { extractKnownSkills } from "@/lib/remotive";
 import { filterAndSortMatches, type JobAgeFilter, type JobSortMode } from "@/lib/job-results";
 import { clearJobAgentLocalData } from "@/lib/local-data";
+import { readSavedJobSearches, upsertSavedJobSearch, removeSavedJobSearch, type JobSearchSource, type SavedJobSearch } from "@/lib/saved-searches";
 import { createJobAgentBackup, parseJobAgentBackup, restoreJobAgentBackupToStorage } from "@/lib/backup";
 
 const sampleJobs: Job[] = [
@@ -38,7 +39,9 @@ export default function HomePage() {
   const [sortMode, setSortMode] = useState<JobSortMode>("match");
   const [notice, setNotice] = useState("");
   const [liveQuery, setLiveQuery] = useState("Python developer");
-  const [jobSource, setJobSource] = useState<"all" | "remotive" | "arbeitnow">("all");
+  const [jobSource, setJobSource] = useState<JobSearchSource>("all");
+  const [savedSearches, setSavedSearches] = useState<SavedJobSearch[]>([]);
+  const [savedSearchName, setSavedSearchName] = useState("");
   const [liveJobs, setLiveJobs] = useState<Job[]>([]);
   const [showLiveJobs, setShowLiveJobs] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
@@ -65,6 +68,7 @@ export default function HomePage() {
     try {
       setSavedJobs(readShortlist(window.localStorage.getItem("job-agent.shortlist.v1")));
       setTrackedApplications(readApplicationTracker(window.localStorage.getItem("job-agent.applications.v1")));
+      setSavedSearches(readSavedJobSearches(window.localStorage.getItem("job-agent.saved-searches.v1")));
     } catch {
       // Storage may be disabled; individual save/load actions show user-facing errors.
     }
@@ -82,7 +86,7 @@ export default function HomePage() {
         minimumScore,
         draftLanguage
       };
-      const backup = createJobAgentBackup(profile, savedJobs, trackedApplications);
+      const backup = createJobAgentBackup(profile, savedJobs, trackedApplications, savedSearches);
       if (!parseJobAgentBackup(backup)) {
         setBackupError("This profile or its saved records exceed backup limits or contain invalid data. Review profile lengths and remove invalid local records before exporting.");
         return;
@@ -120,7 +124,7 @@ export default function HomePage() {
         throw new Error("This backup is invalid, unsupported, or contains malformed records. No data was changed.");
       }
       if (!window.confirm(
-        "Restore this backup and replace the current Job Agent profile, saved roles, and application tracker? The action cannot be undone. CV files are not included."
+        "Restore this backup and replace the current Job Agent profile, saved searches, saved roles, and application tracker? The action cannot be undone. CV files are not included."
       )) {
         return;
       }
@@ -137,6 +141,8 @@ export default function HomePage() {
       setMinimumScore(backup.profile.minimumScore);
       setSavedJobs(backup.savedJobs);
       setTrackedApplications(backup.applications);
+      setSavedSearches(backup.savedSearches);
+      setSavedSearchName("");
       setJobCategoryFilter("all");
       setJobTypeFilter("all");
       setPostedWithinFilter("any");
@@ -164,7 +170,7 @@ export default function HomePage() {
   }
 
   function clearAllLocalJobAgentData() {
-    if (!window.confirm("Clear this browser's saved Job Agent profile, shortlist, and application history? This cannot be undone.")) {
+    if (!window.confirm("Clear this browser's saved Job Agent profile, searches, shortlist, and application history? This cannot be undone.")) {
       return;
     }
 
@@ -189,6 +195,8 @@ export default function HomePage() {
       setIsParsingResume(false);
       setSavedJobs([]);
       setTrackedApplications([]);
+      setSavedSearches([]);
+      setSavedSearchName("");
       setShowSavedJobs(false);
       setShowApplications(false);
       setApplicationStatusFilter("all");
@@ -298,17 +306,19 @@ export default function HomePage() {
     setSortMode("match");
   }
 
-  async function handleLiveSearch(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const query = liveQuery.trim().slice(0, 80);
+  async function performLiveSearch(queryValue: string, sourceValue: JobSearchSource) {
+    const query = queryValue.trim().slice(0, 80);
     if (!query) {
       setLiveError("Enter a job title or keyword to search.");
       return;
     }
+    setLiveQuery(query);
+    setJobSource(sourceValue);
     setIsSearching(true);
     setLiveError("");
+    setLiveWarning("");
     try {
-      const response = await fetch(`/api/jobs?q=${encodeURIComponent(query)}&limit=40&source=${jobSource}`, {
+      const response = await fetch(`/api/jobs?q=${encodeURIComponent(query)}&limit=40&source=${sourceValue}`, {
         headers: { Accept: "application/json" }
       });
       const payload: unknown = await response.json();
@@ -337,6 +347,68 @@ export default function HomePage() {
     } finally {
       setIsSearching(false);
     }
+  }
+
+  async function handleLiveSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await performLiveSearch(liveQuery, jobSource);
+  }
+
+  function createSavedSearchId() {
+    if (typeof window.crypto?.randomUUID === "function") return window.crypto.randomUUID();
+    return "saved-search-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+  }
+
+  function saveCurrentSearch() {
+    const query = liveQuery.trim().slice(0, 80);
+    if (!query) {
+      setNotice("Enter a keyword before saving a search.");
+      return;
+    }
+
+    const normalizedQuery = query.normalize("NFKC").replace(/\s+/g, " ").trim().toLowerCase();
+    const duplicate = savedSearches.find(search =>
+      search.source === jobSource
+      && search.query.normalize("NFKC").replace(/\s+/g, " ").trim().toLowerCase() === normalizedQuery
+    );
+    const entry: SavedJobSearch = {
+      id: duplicate?.id ?? createSavedSearchId(),
+      name: savedSearchName.trim().slice(0, 60) || query,
+      query,
+      source: jobSource,
+      createdAt: duplicate?.createdAt ?? new Date().toISOString()
+    };
+    const updated = upsertSavedJobSearch(savedSearches, entry);
+    setSavedSearches(updated);
+    setSavedSearchName("");
+    try {
+      window.localStorage.setItem("job-agent.saved-searches.v1", JSON.stringify(updated));
+      setNotice(duplicate ? "Saved search updated in this browser." : "Search saved in this browser. It will not run automatically.");
+    } catch {
+      setNotice("Search is available for this session, but the browser could not persist it.");
+    }
+  }
+
+  function deleteSavedSearch(id: string) {
+    const updated = removeSavedJobSearch(savedSearches, id);
+    setSavedSearches(updated);
+    try {
+      window.localStorage.setItem("job-agent.saved-searches.v1", JSON.stringify(updated));
+      setNotice("Saved search removed.");
+    } catch {
+      setNotice("Search removed for this session, but the browser could not persist the change.");
+    }
+  }
+
+  async function runSavedSearch(search: SavedJobSearch) {
+    setSavedSearchName(search.name);
+    await performLiveSearch(search.query, search.source);
+  }
+
+  function jobSourceLabel(source: JobSearchSource) {
+    if (source === "remotive") return "Remotive";
+    if (source === "arbeitnow") return "Arbeitnow";
+    return "Both sources";
   }
 
   async function selectCv(file?: File) {
@@ -590,7 +662,7 @@ export default function HomePage() {
   return <main className="shell">
     <header className="topbar">
       <a className="brand" href="#"><span className="brand-mark">J</span> Job Agent</a>
-      <span className="phase-pill">PHASE 12 · MULTI-SOURCE SEARCH</span>
+      <span className="phase-pill">PHASE 17 · SAVED SEARCHES</span>
     </header>
     <section className="hero">
       <div>
@@ -695,6 +767,38 @@ export default function HomePage() {
             </label>
             <p className="source-disclaimer">Sources: {jobSource !== "arbeitnow" && <><a href="https://remotive.com/remote-jobs/api" target="_blank" rel="noreferrer">Remotive API</a>{jobSource === "all" ? " · " : ""}</>}{jobSource !== "remotive" && <a href="https://www.arbeitnow.com" target="_blank" rel="noreferrer">Arbeitnow API</a>}. Results are cached server-side; listings link back to the original source.</p>
           </form>
+          <section className="saved-search-manager" aria-label="Saved job searches">
+            <div className="saved-search-save-row">
+              <label htmlFor="saved-search-name">Save current search <span>(optional name)</span>
+                <input
+                  id="saved-search-name"
+                  value={savedSearchName}
+                  onChange={event => setSavedSearchName(event.target.value)}
+                  maxLength={60}
+                  placeholder="e.g. Junior Python roles"
+                />
+              </label>
+              <button className="primary-button saved-search-save-button" type="button" onClick={saveCurrentSearch} disabled={!liveQuery.trim() || isSearching}>Save search</button>
+            </div>
+            <div className="saved-search-list-heading">
+              <strong>Saved searches</strong><span>{savedSearches.length}/20</span>
+            </div>
+            {savedSearches.length === 0
+              ? <p className="saved-search-empty">Saved searches stay in this browser. They never run automatically or send email.</p>
+              : <div className="saved-search-list">
+                {savedSearches.map(search => <div className="saved-search-item" key={search.id}>
+                  <div className="saved-search-item-copy">
+                    <strong>{search.name}</strong>
+                    <span>{search.query}</span>
+                    <small>{jobSourceLabel(search.source)} · Saved {new Date(search.createdAt).toLocaleDateString()}</small>
+                  </div>
+                  <div className="saved-search-item-actions">
+                    <button className="secondary-button" type="button" onClick={() => { void runSavedSearch(search); }} disabled={isSearching}>Run</button>
+                    <button className="secondary-button saved-search-remove" type="button" onClick={() => deleteSavedSearch(search.id)}>Remove</button>
+                  </div>
+                </div>)}
+              </div>}
+          </section>
           <div className="source-mode-actions">
             <button className="secondary-button" type="button" onClick={loadSavedJobs}>Saved roles ({savedJobs.length})</button>
             <button className="secondary-button" type="button" onClick={loadTrackedApplications}>Application tracker ({trackedApplications.length})</button>
