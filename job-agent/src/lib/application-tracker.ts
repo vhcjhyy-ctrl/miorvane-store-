@@ -48,7 +48,8 @@ function isValidJob(value: unknown): value is Job {
   }
 
   try {
-    return new URL(value.url).protocol === "https:";
+    const url = new URL(value.url);
+    return url.protocol === "https:";
   } catch {
     return false;
   }
@@ -59,11 +60,10 @@ function isApplicationStatus(value: unknown): value is ApplicationStatus {
 }
 
 function isDateOnly(value: unknown): value is string {
-  if (typeof value !== "string" || !/^\\d{4}-\\d{2}-\\d{2}$/.test(value)) return false;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = new Date(value + "T00:00:00.000Z");
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
-
 
 /** Parse browser-local tracking data defensively. Corrupt or stale records are skipped. */
 export function readApplicationTracker(raw: string | null): TrackedApplication[] {
@@ -96,7 +96,7 @@ export function readApplicationTracker(raw: string | null): TrackedApplication[]
   }
 }
 
-/** Set or clear one job's status without allowing duplicate records. */
+/** Set or clear a job's status without losing saved notes or its follow-up date. */
 export function updateApplicationTracker(
   applications: TrackedApplication[],
   job: Job,
@@ -106,6 +106,7 @@ export function updateApplicationTracker(
   const previous = applications.find(item => item.job.id === job.id);
   const remaining = applications.filter(item => item.job.id !== job.id);
   if (status === "") return remaining;
+
   const next: TrackedApplication = {
     job,
     status,
@@ -132,8 +133,9 @@ export function updateTrackedApplicationDetails(
     job,
     updatedAt: new Date(updatedAt).toISOString()
   };
+
   if (field === "notes") {
-    updated.notes = value.replace(/\\u0000/g, "").slice(0, 2000);
+    updated.notes = value.replace(/\u0000/g, "").slice(0, 2000);
   } else if (value === "") {
     delete updated.followUpDate;
   } else if (isDateOnly(value)) {
@@ -141,5 +143,6 @@ export function updateTrackedApplicationDetails(
   } else {
     return applications;
   }
+
   return applications.map(item => item.job.id === job.id ? updated : item);
 }

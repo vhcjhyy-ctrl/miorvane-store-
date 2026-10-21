@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { readApplicationTracker, updateApplicationTracker, updateTrackedApplicationDetails, type TrackedApplication } from "./application-tracker";
+import {
+  readApplicationTracker,
+  updateApplicationTracker,
+  updateTrackedApplicationDetails,
+  type TrackedApplication
+} from "./application-tracker";
 import type { Job } from "./scoring";
 
 const job: Job = {
@@ -26,8 +31,8 @@ describe("browser-local application tracker", () => {
     const added = updateApplicationTracker([], job, "interested", "2026-10-20T12:00:00.000Z");
     expect(added).toEqual([entry]);
 
-    const withDetails = updateTrackedApplicationDetails(added, job, "notes", "Ask about team structure.");
-    const withDate = updateTrackedApplicationDetails(withDetails, job, "followUpDate", "2026-10-30");
+    const withNotes = updateTrackedApplicationDetails(added, job, "notes", "Ask about team structure.");
+    const withDate = updateTrackedApplicationDetails(withNotes, job, "followUpDate", "2026-10-30");
     const updated = updateApplicationTracker(withDate, job, "applied", "2026-10-21T12:00:00.000Z");
     expect(updated).toHaveLength(1);
     expect(updated[0].status).toBe("applied");

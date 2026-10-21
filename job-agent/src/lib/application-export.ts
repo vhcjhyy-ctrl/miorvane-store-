@@ -24,18 +24,18 @@ function csvCell(value: unknown): string {
 
 /** Serialize a browser-local application tracker as spreadsheet-safe UTF-8 CSV text. */
 export function applicationTrackerToCsv(applications: TrackedApplication[]): string {
-  const rows = applications.map(({ job, status, updatedAt }) => [
-    job.title,
-    job.company,
-    status,
-    updatedAt,
-    job.location,
-    job.salary ?? "",
-    job.publishedAt ?? "",
+  const rows = applications.map(application => [
+    application.job.title,
+    application.job.company,
+    application.status,
+    application.updatedAt,
+    application.job.location,
+    application.job.salary ?? "",
+    application.job.publishedAt ?? "",
     application.followUpDate ?? "",
     application.notes ?? "",
-    job.source ?? "",
-    job.url
+    application.job.source ?? "",
+    application.job.url
   ]);
   return [HEADERS, ...rows].map(row => row.map(csvCell).join(",")).join("\r\n") + "\r\n";
 }

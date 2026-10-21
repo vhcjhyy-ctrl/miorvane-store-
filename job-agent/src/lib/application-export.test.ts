@@ -26,9 +26,9 @@ const application: TrackedApplication = {
 };
 
 describe("application tracker CSV export", () => {
-  it("returns a header row for an empty tracker", () => {
+  it("returns the complete header row for an empty tracker", () => {
     expect(applicationTrackerToCsv([])).toBe(
-      '"job_title","company","status","last_updated","location","salary","published_at","source","job_url"\r\n'
+      '"job_title","company","status","last_updated","location","salary","published_at","follow_up_date","notes","source","job_url"\r\n'
     );
   });
 

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { explainJobMatch, type CandidateProfile, type Job } from "@/lib/scoring";
 import { buildCoverLetterDraft } from "@/lib/application-draft";
 import { readShortlist, toggleShortlist } from "@/lib/shortlist";
-import { readApplicationTracker, updateApplicationTracker, type ApplicationStatus, type TrackedApplication } from "@/lib/application-tracker";
+import { readApplicationTracker, updateApplicationTracker, updateTrackedApplicationDetails, type ApplicationStatus, type TrackedApplication } from "@/lib/application-tracker";
 import { applicationTrackerToCsv } from "@/lib/application-export";
 import { extractResumeText } from "@/lib/cv-parser";
 import { extractKnownSkills } from "@/lib/remotive";
@@ -321,6 +321,37 @@ export default function HomePage() {
     }
   }
 
+  function updateTrackedDetail(job: Job, field: "notes" | "followUpDate", value: string) {
+    const updated = updateTrackedApplicationDetails(
+      trackedApplications,
+      job,
+      field,
+      value,
+      new Date().toISOString()
+    );
+    if (updated === trackedApplications) return;
+    setTrackedApplications(updated);
+    try {
+      window.localStorage.setItem("job-agent.applications.v1", JSON.stringify(updated));
+    } catch {
+      setNotice("The change is visible for this session, but the browser could not persist it.");
+    }
+  }
+
+  function localDateStamp() {
+    const now = new Date();
+    return now.getFullYear() + "-" +
+      String(now.getMonth() + 1).padStart(2, "0") + "-" +
+      String(now.getDate()).padStart(2, "0");
+  }
+
+  function getFollowUpState(date: string) {
+    const today = localDateStamp();
+    if (date < today) return { label: "Follow-up overdue", className: "follow-up-overdue" };
+    if (date === today) return { label: "Follow-up due today", className: "follow-up-today" };
+    return { label: "Follow-up scheduled", className: "follow-up-planned" };
+  }
+
   function createCoverLetterDraft(job: Job) {
     setDraftForJob(job);
     setAiConsent(false);
@@ -388,7 +419,7 @@ export default function HomePage() {
   return <main className="shell">
     <header className="topbar">
       <a className="brand" href="#"><span className="brand-mark">J</span> Job Agent</a>
-      <span className="phase-pill">PHASE 8 · TRACKER EXPORT</span>
+      <span className="phase-pill">PHASE 9 · FOLLOW-UP TRACKER</span>
     </header>
     <section className="hero">
       <div>
@@ -516,7 +547,9 @@ export default function HomePage() {
           <label className="salary-toggle"><input type="checkbox" checked={salaryOnlyFilter} onChange={event => setSalaryOnlyFilter(event.target.checked)}/> Only listings with published compensation</label>
         </section>
         {matches.length === 0 && <div className="empty-state">{showApplications ? (trackedApplications.length === 0 ? "No applications being tracked yet. Open live or demo listings and select a status." : "No tracked roles meet your current score threshold. Lower the threshold or change your profile.") : showSavedJobs ? (savedJobs.length === 0 ? "No roles saved yet. Switch to live or demo listings and choose Save role." : "No saved roles meet your current score threshold. Lower the threshold or change your profile.") : showLiveJobs && isSearching ? "Searching for matching roles…" : showLiveJobs ? "No live listings meet this search and score threshold. Try another keyword or lower the threshold." : "No sample jobs meet this score and preference combination. Lower the threshold or change your profile."}</div>}
-        {matches.map(({job, explanation}) => <article className="job-card" key={job.id}>
+        {matches.map(({job, explanation}) => {
+          const trackedRecord = trackedApplications.find(item => item.job.id === job.id);
+          return <article className="job-card" key={job.id}>
           <div className="job-card-top">
             <div className="company-avatar">{job.company.slice(0, 1) || "J"}</div>
             <div className="job-title-group"><h3>{job.title}</h3><p>{job.company} · {job.location}</p></div>
@@ -542,7 +575,7 @@ export default function HomePage() {
             <select
               id={"application-status-" + job.id}
               className="tracker-status"
-              value={trackedApplications.find(item => item.job.id === job.id)?.status ?? ""}
+              value={trackedRecord?.status ?? ""}
               onChange={event => changeApplicationStatus(job, event.target.value)}
             >
               <option value="">Not tracking</option>
@@ -554,8 +587,30 @@ export default function HomePage() {
               <option value="rejected">Rejected</option>
               <option value="withdrawn">Withdrawn</option>
             </select>
-            {trackedApplications.some(item => item.job.id === job.id) && <small className="tracker-updated">Updated {new Date(trackedApplications.find(item => item.job.id === job.id)!.updatedAt).toLocaleString()}</small>}
+            {trackedRecord && <small className="tracker-updated">Updated {new Date(trackedRecord.updatedAt).toLocaleString()}</small>}
           </div>
+          {trackedRecord && <div className="application-details">
+            <label className="field-label" htmlFor={"application-notes-" + job.id}>Private notes</label>
+            <textarea
+              id={"application-notes-" + job.id}
+              value={trackedRecord.notes ?? ""}
+              onChange={event => updateTrackedDetail(job, "notes", event.target.value)}
+              maxLength={2000}
+              rows={2}
+              placeholder="Recruiter name, interview details, questions to ask…"
+            />
+            <label className="field-label" htmlFor={"follow-up-date-" + job.id}>Follow-up date</label>
+            <input
+              id={"follow-up-date-" + job.id}
+              type="date"
+              value={trackedRecord.followUpDate ?? ""}
+              onChange={event => updateTrackedDetail(job, "followUpDate", event.target.value)}
+            />
+            {trackedRecord.followUpDate && <p className={"follow-up-indicator " + getFollowUpState(trackedRecord.followUpDate).className}>
+              {getFollowUpState(trackedRecord.followUpDate).label} · {trackedRecord.followUpDate}
+            </p>}
+            <small className="follow-up-help">Notes and dates stay in this browser. They are included in the CSV export.</small>
+          </div>}
           <div className="job-card-bottom">
             <span className={job.remote ? "remote-tag" : "onsite-tag"}>{job.remote ? "REMOTE" : "ON-SITE / HYBRID"}</span>
             <div className="job-card-actions">
@@ -564,7 +619,8 @@ export default function HomePage() {
               <a href={job.url} target="_blank" rel="noreferrer">{job.source === "Remotive" ? "View on Remotive ↗" : "Example listing ↗"}</a>
             </div>
           </div>
-        </article>)}
+        </article>;
+        })}
         {draftForJob && <section className="panel draft-panel" aria-label="Cover letter draft editor">
           <div className="section-heading">
             <div><p className="eyebrow">03 / APPLICATION PREPARATION</p><h2>Cover letter draft</h2></div>
