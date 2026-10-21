@@ -742,7 +742,7 @@ export default function HomePage() {
           </select>
           <p className="draft-help">Changing the language affects the next local regeneration or AI generation. It does not overwrite your current edits.</p>
           <label className="field-label" htmlFor="cover-letter-text">Editable draft</label>
-          <textarea id="cover-letter-text" rows={13} value={draftText} onChange={e => setDraftText(e.target.value)} />
+          <textarea id="cover-letter-text" dir={draftLanguage === "ar" ? "rtl" : "ltr"} lang={draftLanguage} rows={13} value={draftText} onChange={e => setDraftText(e.target.value)} />
           <div className="ai-consent-box">
             <label className="ai-consent-row">
               <input type="checkbox" checked={aiConsent} onChange={event => setAiConsent(event.target.checked)} disabled={isAiDrafting}/>
