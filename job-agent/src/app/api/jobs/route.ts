@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import type { Job } from "@/lib/scoring";
-import { filterArbeitnowJobs } from "@/lib/arbeitnow";
-import { filterRemotiveJobs } from "@/lib/remotive";
-import { mergeJobSources } from "@/lib/job-sources";
+import type { Job } from "../../../lib/scoring";
+import { filterArbeitnowJobs } from "../../../lib/arbeitnow";
+import { filterRemotiveJobs } from "../../../lib/remotive";
+import { mergeJobSources } from "../../../lib/job-sources";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,7 +45,6 @@ async function fetchArbeitnowJobs(query: string, perSourceLimit: number): Promis
   }
   return filterArbeitnowJobs(payload.data, query, perSourceLimit);
 }
-
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url);

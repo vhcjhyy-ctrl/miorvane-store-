@@ -1,4 +1,4 @@
-# Job Agent — Phase 17
+# Job Agent — Phase 18
 
 A starter workspace for a personal AI job application agent. This folder is intentionally isolated from the existing store project.
 
@@ -19,8 +19,8 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Export tracked applications as CSV with spreadsheet-formula injection protection
 - Bilingual Arabic/English cover-letter templates and optional OpenAI Responses API drafts, disabled by default and guarded by explicit consent
 - Streaming request-body size limit and UTF-8 validation for the optional AI endpoint, with targeted tests
-- Vitest suites for scoring, result filters/sorting, multi-source merge/deduplication, bounded request-body parsing, backup validation/round-trip, application dashboard summaries/status filtering, app-local data cleanup, saved-search validation/upsert/removal, Remotive and Arbeitnow normalization, browser-local shortlist, application tracking, CSV export, English/Arabic cover-letter drafts, and local CV extraction
-- GitHub Actions runs ESLint, unit tests, a production build, and a Docker image build on changes
+- Vitest suites for scoring, result filters/sorting, multi-source merge/deduplication, live job API route integration, bounded request-body parsing, backup validation/round-trip, application dashboard summaries/status filtering, app-local data cleanup, saved-search validation/upsert/removal, Remotive and Arbeitnow normalization, browser-local shortlist, application tracking, CSV export, English/Arabic cover-letter drafts, and local CV extraction
+- GitHub Actions runs ESLint, unit tests, a production build, and a Docker image build on changes; provider-route integration tests cover partial outages, malformed feeds, source selection, and result limits
 - Multi-stage Docker image, loopback-only Docker Compose port by default, and a secret-free health endpoint
 - Supabase migration draft now enables RLS on job sources and jobs, exposing only active, unexpired jobs to authenticated users
 - Initial Supabase SQL schema and RLS policies

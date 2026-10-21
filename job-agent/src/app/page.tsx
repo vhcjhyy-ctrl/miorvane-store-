@@ -662,7 +662,7 @@ export default function HomePage() {
   return <main className="shell">
     <header className="topbar">
       <a className="brand" href="#"><span className="brand-mark">J</span> Job Agent</a>
-      <span className="phase-pill">PHASE 17 · SAVED SEARCHES</span>
+      <span className="phase-pill">PHASE 18 · SEARCH RELIABILITY</span>
     </header>
     <section className="hero">
       <div>
@@ -753,7 +753,7 @@ export default function HomePage() {
         </div>
         <div className="live-search-panel">
           <form className="live-search-form" onSubmit={handleLiveSearch}>
-            <label htmlFor="live-query">Search public remote jobs</label>
+            <label htmlFor="live-query">Search public jobs</label>
             <div className="live-search-controls">
               <input id="live-query" value={liveQuery} onChange={e => setLiveQuery(e.target.value)} maxLength={80} placeholder="Python developer, data analyst, cybersecurity"/>
               <button className="primary-button live-submit" type="submit" disabled={isSearching}>{isSearching ? "Searching…" : "Search live jobs"}</button>
