@@ -50,6 +50,7 @@ export default function HomePage() {
   const [showApplications, setShowApplications] = useState(false);
   const [applicationStatusFilter, setApplicationStatusFilter] = useState<ApplicationStatusFilter>("all");
   const [draftForJob, setDraftForJob] = useState<Job | null>(null);
+  const [draftLanguage, setDraftLanguage] = useState<"en" | "ar">("en");
   const [draftText, setDraftText] = useState("");
   const [aiConsent, setAiConsent] = useState(false);
   const [isAiDrafting, setIsAiDrafting] = useState(false);
@@ -72,6 +73,7 @@ export default function HomePage() {
     try {
       clearJobAgentLocalData(window.localStorage);
       setCandidateName("");
+      setDraftLanguage("en");
       setSkillsText("");
       setRolesText("");
       setLevel("entry");
@@ -109,8 +111,8 @@ export default function HomePage() {
 
   function saveProfileSettings() {
     try {
-      const settings = { schemaVersion: 2, candidateName, skillsText, rolesText, level, remoteOnly, minimumScore };
-      window.localStorage.setItem("job-agent.profile.v2", JSON.stringify(settings));
+      const settings = { schemaVersion: 3, candidateName, skillsText, rolesText, level, remoteOnly, minimumScore, draftLanguage };
+      window.localStorage.setItem("job-agent.profile.v3", JSON.stringify(settings));
       setNotice("Profile preferences saved in this browser. Your CV file was not uploaded or saved.");
     } catch {
       setNotice("The browser could not save these settings. Check local storage availability.");
@@ -119,7 +121,7 @@ export default function HomePage() {
 
   function loadProfileSettings() {
     try {
-      const raw = window.localStorage.getItem("job-agent.profile.v2") ?? window.localStorage.getItem("job-agent.profile.v1");
+      const raw = window.localStorage.getItem("job-agent.profile.v3") ?? window.localStorage.getItem("job-agent.profile.v2") ?? window.localStorage.getItem("job-agent.profile.v1");
       if (!raw) {
         setNotice("No saved profile was found in this browser yet.");
         return;
@@ -133,7 +135,8 @@ export default function HomePage() {
         && settings.minimumScore <= 95
         && settings.minimumScore % 5 === 0;
       if (
-        (settings.schemaVersion !== 1 && settings.schemaVersion !== 2)
+        (settings.schemaVersion !== 1 && settings.schemaVersion !== 2 && settings.schemaVersion !== 3)
+        || (settings.draftLanguage !== undefined && settings.draftLanguage !== "en" && settings.draftLanguage !== "ar")
         || typeof settings.skillsText !== "string"
         || typeof settings.rolesText !== "string"
         || !validLevel
@@ -143,6 +146,7 @@ export default function HomePage() {
         throw new Error("Invalid settings");
       }
       setCandidateName(typeof settings.candidateName === "string" ? settings.candidateName : "");
+      setDraftLanguage(settings.draftLanguage === "ar" ? "ar" : "en");
       setSkillsText(settings.skillsText);
       setRolesText(settings.rolesText);
       setLevel(settings.level as CandidateProfile["level"]);
@@ -427,7 +431,8 @@ export default function HomePage() {
       skills: candidate.skills,
       jobSkills: job.skills,
       jobTitle: job.title,
-      company: job.company
+      company: job.company,
+      language: draftLanguage
     }));
     setNotice("A cover letter template was created locally. Review every line before using it; nothing was sent.");
   }
@@ -730,6 +735,12 @@ export default function HomePage() {
             <button className="secondary-button draft-close" type="button" onClick={() => { setDraftForJob(null); setDraftText(""); setAiConsent(false); setAiDraftError(""); }}>Close</button>
           </div>
           <p className="draft-help">Template for {draftForJob.title} at {draftForJob.company}. It uses only your entered name, target roles, and skills. It does not claim experience, credentials, or achievements you have not supplied.</p>
+          <label className="field-label" htmlFor="draft-language">Language for generated drafts</label>
+          <select id="draft-language" value={draftLanguage} onChange={event => setDraftLanguage(event.target.value as "en" | "ar")}>
+            <option value="en">English</option>
+            <option value="ar">العربية</option>
+          </select>
+          <p className="draft-help">Changing the language affects the next local regeneration or AI generation. It does not overwrite your current edits.</p>
           <label className="field-label" htmlFor="cover-letter-text">Editable draft</label>
           <textarea id="cover-letter-text" rows={13} value={draftText} onChange={e => setDraftText(e.target.value)} />
           <div className="ai-consent-box">
@@ -745,7 +756,7 @@ export default function HomePage() {
           </div>
           <div className="draft-actions">
             <button className="primary-button" type="button" onClick={copyCoverLetterDraft}>Copy draft</button>
-            <button className="secondary-button" type="button" onClick={() => setDraftText(buildCoverLetterDraft({ candidateName, targetRoles: candidate.targetRoles, skills: candidate.skills, jobSkills: draftForJob.skills, jobTitle: draftForJob.title, company: draftForJob.company }))}>Regenerate local template</button>
+            <button className="secondary-button" type="button" onClick={() => setDraftText(buildCoverLetterDraft({ candidateName, targetRoles: candidate.targetRoles, skills: candidate.skills, jobSkills: draftForJob.skills, jobTitle: draftForJob.title, company: draftForJob.company, language: draftLanguage }))}>Regenerate local template</button>
           </div>
           <p className="source-disclaimer">Review and personalize the text before using it. Copying is the only export action; this app cannot send applications or emails.</p>
         </section>}

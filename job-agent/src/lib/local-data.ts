@@ -3,6 +3,7 @@
  * never touches local data belonging to other websites or applications.
  */
 export const JOB_AGENT_LOCAL_STORAGE_KEYS = [
+  "job-agent.profile.v3",
   "job-agent.profile.v2",
   "job-agent.profile.v1",
   "job-agent.shortlist.v1",

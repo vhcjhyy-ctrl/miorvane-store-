@@ -5,6 +5,7 @@ export interface CoverLetterDraftInput {
   jobSkills?: string[];
   jobTitle: string;
   company: string;
+  language?: "en" | "ar";
 }
 
 function cleanLine(value: unknown, maxLength: number): string {
@@ -22,13 +23,43 @@ function cleanLine(value: unknown, maxLength: number): string {
  * qualifications, employers, or achievements from the listing.
  */
 export function buildCoverLetterDraft(input: CoverLetterDraftInput): string {
-  const name = cleanLine(input.candidateName, 80) || "[Your name]";
-  const title = cleanLine(input.jobTitle, 160) || "the advertised position";
-  const company = cleanLine(input.company, 120) || "your team";
+  const language = input.language ?? "en";
+  const name = cleanLine(input.candidateName, 80) || (language === "ar" ? "[اسمك]" : "[Your name]");
+  const title = cleanLine(input.jobTitle, 160) || (language === "ar" ? "الوظيفة المعلن عنها" : "the advertised position");
+  const company = cleanLine(input.company, 120) || (language === "ar" ? "فريقكم" : "your team");
   const targetRoles = [...new Set(input.targetRoles.map(role => cleanLine(role, 80)).filter(Boolean))].slice(0, 3);
   const skills = [...new Set(input.skills.map(skill => cleanLine(skill, 60)).filter(Boolean))].slice(0, 6);
   const jobSkillKeys = new Set((input.jobSkills ?? []).map(skill => cleanLine(skill, 60).toLowerCase()).filter(Boolean));
   const matchingSkills = skills.filter(skill => jobSkillKeys.has(skill.toLowerCase()));
+
+  if (language === "ar") {
+    const paragraphs = [
+      "السادة/ فريق التوظيف لدى " + company + " المحترمون،",
+      "أتقدم إليكم للتعبير عن اهتمامي بوظيفة " + title + " لدى " + company + "."
+    ];
+
+    if (targetRoles.length > 0) {
+      paragraphs.push("أبحث عن فرص مهنية تركز على " + targetRoles.join("، ") + "، وأرى أن هذه الوظيفة تتوافق مع اهتماماتي المهنية.");
+    }
+
+    if (skills.length > 0) {
+      paragraphs.push("تشمل المهارات التي أدرجتها في ملفي: " + skills.join("، ") + ".");
+    } else {
+      paragraphs.push("يسعدني مناقشة مهاراتي الحالية ومدى توافقها مع متطلبات الوظيفة.");
+    }
+
+    if (matchingSkills.length > 0) {
+      paragraphs.push("ومن بين المهارات الواردة في ملفي والمذكورة أيضًا في الإعلان: " + matchingSkills.join("، ") + ".");
+    }
+
+    paragraphs.push(
+      "يسعدني معرفة المزيد عن أولويات فريقكم ومناقشة مدى ملاءمة مهاراتي الحالية للوظيفة.",
+      "شكرًا لوقتكم واهتمامكم.",
+      "مع خالص التحية،\\n" + name
+    );
+
+    return paragraphs.join("\\n\\n");
+  }
 
   const paragraphs = [
     "Dear Hiring Team at " + company + ",",

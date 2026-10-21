@@ -19,6 +19,24 @@ describe("cover letter draft builder", () => {
     expect(draft).not.toMatch(/\b(?:degree|certified|five years|5 years|managed a team)\b/i);
   });
 
+  it("creates an Arabic draft using only supplied candidate details", () => {
+    const draft = buildCoverLetterDraft({
+      candidateName: "أحمد محمد",
+      targetRoles: ["مطور بايثون"],
+      skills: ["Python", "Git"],
+      jobSkills: ["Python", "SQL"],
+      jobTitle: "مطور بايثون مبتدئ",
+      company: "Example Systems",
+      language: "ar"
+    });
+
+    expect(draft).toContain("أحمد محمد");
+    expect(draft).toContain("مطور بايثون مبتدئ");
+    expect(draft).toContain("Example Systems");
+    expect(draft).toContain("Python، Git");
+    expect(draft).not.toMatch(/\\b(?:degree|certified|five years|5 years|managed a team)\\b/i);
+  });
+
   it("uses a clear name placeholder and remains useful when the profile is sparse", () => {
     const draft = buildCoverLetterDraft({
       targetRoles: [],
