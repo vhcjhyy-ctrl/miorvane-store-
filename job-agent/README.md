@@ -28,6 +28,7 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Streaming request-body size limit and UTF-8 validation for the optional AI endpoint, with targeted tests
 - Vitest suites for scoring, result filters/sorting, multi-source merge/deduplication, live job API route integration, bounded request-body parsing, backup validation/round-trip, application dashboard summaries/status filtering, app-local data cleanup, saved-search validation/upsert/removal, Remotive and Arbeitnow normalization, browser-local shortlist, application tracking, CSV export, English/Arabic cover-letter drafts, and local CV extraction and CV-to-job keyword comparison
 - GitHub Actions runs ESLint, unit tests, a production build, Docker image build, Compose configuration validation, and a real container health smoke test; provider-route integration tests cover partial outages, malformed feeds, source selection, and result limits
+- Separate liveness (`/api/health`) and Supabase catalog readiness (`/api/health/ready`) probes; the readiness endpoint checks the real catalog query and reports safe migration guidance
 - Multi-stage Docker image, loopback-only Docker Compose port by default, secret-free health endpoint, and baseline security response headers (no-sniff, frame denial, referrer policy, and restrictive browser permissions)
 - Supabase migrations enable RLS on private workspace rows and restrict public catalog reads to active, unexpired jobs plus enabled-source metadata; private source configuration is not granted to anon users
 - Initial Supabase SQL schema and RLS policies
@@ -70,7 +71,7 @@ docker compose ps
 docker compose logs -f job-agent
 ```
 
-The service binds to `127.0.0.1:3000` by default. Change `JOB_AGENT_PORT` to use another local port. The container uses a multi-stage production build and runs as an unprivileged user. The `/api/health` endpoint is intended for container health checks and does not reveal runtime secrets.
+The service binds to `127.0.0.1:3000` by default. Change `JOB_AGENT_PORT` to use another local port. The container uses a multi-stage production build and runs as an unprivileged user. The `/api/health` endpoint is a liveness probe and does not reveal runtime secrets. `/api/health/ready` checks Supabase configuration, catalog connectivity, the indexed search column and required source relation; it returns safe remediation instructions when the database or migration is missing.
 
 AI generation remains disabled unless explicitly enabled at runtime. Do not enable it on a public deployment until authentication and a shared rate limiter are configured. The Compose file does not supply a default model; set `OPENAI_MODEL` explicitly if you later enable the route. Supply secrets through the runtime environment or an approved secret manager; do not bake `.env` files or keys into the image.
 
