@@ -8,6 +8,7 @@ on:
       - "job-agent/**"
       - ".github/workflows/job-agent-ci.yml"
       - ".github/workflows/job-agent-release.yml"
+      - ".github/workflows/job-agent-catalog-sync.yml"
   pull_request:
     paths:
       - "job-agent/**"
