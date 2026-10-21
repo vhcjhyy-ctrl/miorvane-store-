@@ -36,9 +36,15 @@ describe("browser-local saved job searches", () => {
     const result = readSavedJobSearches(JSON.stringify([
       makeSearch("s1", "  Python   Developer ", "all"),
       makeSearch("s2", "python developer", "all"),
-      makeSearch("s3", "python developer", "remotive")
+      makeSearch("s3", "python developer", "remotive"),
+      makeSearch("s4", "python developer", "catalog")
     ]));
-    expect(result.map(item => item.id)).toEqual(["s1", "s3"]);
+    expect(result.map(item => item.id)).toEqual(["s1", "s3", "s4"]);
+  });
+
+  it("accepts the Supabase catalog as a distinct saved-search source", () => {
+    const saved = readSavedJobSearches(JSON.stringify([makeSearch("s-catalog", "Python", "catalog")]));
+    expect(saved[0].source).toBe("catalog");
   });
 
   it("updates a duplicate search in place without changing its stable id or creation date", () => {

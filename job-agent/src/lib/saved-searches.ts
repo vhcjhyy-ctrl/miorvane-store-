@@ -1,4 +1,4 @@
-export type JobSearchSource = "all" | "remotive" | "arbeitnow";
+export type JobSearchSource = "all" | "remotive" | "arbeitnow" | "catalog";
 
 export interface SavedJobSearch {
   id: string;
@@ -26,7 +26,7 @@ function cleanText(value: unknown, maxLength: number): string | null {
 }
 
 function isSource(value: unknown): value is JobSearchSource {
-  return value === "all" || value === "remotive" || value === "arbeitnow";
+  return value === "all" || value === "remotive" || value === "arbeitnow" || value === "catalog";
 }
 
 function normalizeQuery(value: string): string {

@@ -70,7 +70,17 @@ function createClientMock(options: { configured?: boolean; error?: { code: strin
   builder.order = chain("order");
   builder.range = vi.fn(async (...args: unknown[]) => {
     calls.push({ method: "range", args });
-    return result;
+    const sourceCall = calls.find(call =>
+      call.method === "eq" && call.args[0] === "job_sources.source_key"
+    );
+    const selectedRows = sourceCall
+      ? rows.filter(row => {
+          const sourceValue = Array.isArray(row.job_sources) ? row.job_sources[0] : row.job_sources;
+          return typeof sourceValue === "object" && sourceValue !== null
+            && "source_key" in sourceValue && sourceValue.source_key === sourceCall.args[1];
+        })
+      : rows;
+    return { ...result, data: selectedRows, count: selectedRows.length };
   });
   const client = { from: vi.fn(() => builder) };
   return { client, calls };
@@ -106,7 +116,8 @@ describe("public Supabase catalog search", () => {
     const response = await GET(new Request("http://localhost/api/jobs/catalog?q=python&source=remotive&limit=10&page=2"));
     expect(response.status).toBe(200);
     const payload = await response.json();
-    expect(payload.jobs).toHaveLength(2);
+    expect(payload.jobs).toHaveLength(1);
+    expect(payload.jobs[0].source).toBe("Remotive");
     expect(payload.jobs[0]).toMatchObject({
       id: "remotive-101",
       title: "Python Developer",
@@ -115,6 +126,7 @@ describe("public Supabase catalog search", () => {
       category: "Software Development"
     });
     expect(payload.jobs.some((job: { id: string }) => job.id === "remotive-bad")).toBe(false);
+    expect(payload.jobs.some((job: { source: string }) => job.source === "Arbeitnow")).toBe(false);
     expect(mock.client.from).toHaveBeenCalledWith("jobs");
     expect(mock.calls).toContainEqual({ method: "eq", args: ["active", true] });
     expect(mock.calls.some(call => call.method === "or" && String(call.args[0]).startsWith("expires_at.is.null,expires_at.gt."))).toBe(true);

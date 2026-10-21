@@ -529,7 +529,10 @@ export default function HomePage() {
     setLiveError("");
     setLiveWarning("");
     try {
-      const response = await fetch(`/api/jobs?q=${encodeURIComponent(query)}&limit=40&source=${sourceValue}`, {
+      const endpoint = sourceValue === "catalog"
+        ? `/api/jobs/catalog?q=${encodeURIComponent(query)}&limit=40`
+        : `/api/jobs?q=${encodeURIComponent(query)}&limit=40&source=${sourceValue}`;
+      const response = await fetch(endpoint, {
         headers: { Accept: "application/json" }
       });
       const payload: unknown = await response.json();
@@ -619,6 +622,7 @@ export default function HomePage() {
   function jobSourceLabel(source: JobSearchSource) {
     if (source === "remotive") return "Remotive";
     if (source === "arbeitnow") return "Arbeitnow";
+    if (source === "catalog") return "Supabase catalog";
     return "Both sources";
   }
 
@@ -873,7 +877,7 @@ export default function HomePage() {
   return <main className="shell">
     <header className="topbar">
       <a className="brand" href="#"><span className="brand-mark">J</span> Job Agent</a>
-      <div className="topbar-actions"><span className="phase-pill">PHASE 21 · CLOUD WORKSPACE</span><AuthControls /></div>
+      <div className="topbar-actions"><span className="phase-pill">PHASE 22 · DATABASE CATALOG</span><AuthControls /></div>
     </header>
     <section className="hero">
       <div>
@@ -892,7 +896,7 @@ export default function HomePage() {
       : showSavedJobs
         ? <div className="notice"><strong>Saved roles:</strong> these records are stored only in this browser. Nothing is uploaded or submitted.</div>
         : showLiveJobs
-          ? <div className="notice"><strong>Live-source mode:</strong> results use {jobSource === "all" ? "Remotive and Arbeitnow" : jobSource === "remotive" ? "Remotive" : "Arbeitnow"} public listings with source-specific caching. Jobs may be stale or location-restricted; check the original listing and work-authorization requirements.</div>
+          ? <div className="notice"><strong>Live-source mode:</strong> results use {jobSource === "catalog" ? "the Supabase-backed catalog" : jobSource === "all" ? "Remotive and Arbeitnow" : jobSource === "remotive" ? "Remotive" : "Arbeitnow"} listings with source-specific caching. Jobs may be stale or location-restricted; check the original listing and work-authorization requirements.</div>
           : <div className="notice"><strong>Demo mode:</strong> sample listings are examples. Choose a public source below for live results. No application is submitted and no email is sent.</div>}
     {notice && <p className="inline-notice" role="status">{notice}</p>}
 
@@ -983,13 +987,14 @@ export default function HomePage() {
               <button className="primary-button live-submit" type="submit" disabled={isSearching}>{isSearching ? "Searching…" : "Search live jobs"}</button>
             </div>
             <label className="job-source-selector" htmlFor="job-source">Job source
-              <select id="job-source" value={jobSource} onChange={event => setJobSource(event.target.value as "all" | "remotive" | "arbeitnow")}>
+              <select id="job-source" value={jobSource} onChange={event => setJobSource(event.target.value as JobSearchSource)}>
                 <option value="all">Both sources</option>
                 <option value="remotive">Remotive — remote jobs</option>
                 <option value="arbeitnow">Arbeitnow — Germany & Europe</option>
+                <option value="catalog">Supabase catalog — saved public listings</option>
               </select>
             </label>
-            <p className="source-disclaimer">Sources: {jobSource !== "arbeitnow" && <><a href="https://remotive.com/remote-jobs/api" target="_blank" rel="noreferrer">Remotive API</a>{jobSource === "all" ? " · " : ""}</>}{jobSource !== "remotive" && <a href="https://www.arbeitnow.com" target="_blank" rel="noreferrer">Arbeitnow API</a>}. Results are cached server-side; listings link back to the original source.</p>
+            <p className="source-disclaimer">{jobSource === "catalog" ? "Source: Supabase-backed public catalog. Only active, unexpired records are listed, and each role links to its original provider." : <>Sources: {jobSource !== "arbeitnow" && <><a href="https://remotive.com/remote-jobs/api" target="_blank" rel="noreferrer">Remotive API</a>{jobSource === "all" ? " · " : ""}</>}{jobSource !== "remotive" && <a href="https://www.arbeitnow.com" target="_blank" rel="noreferrer">Arbeitnow API</a>}. Results are cached server-side; listings link back to the original source.</>}</p>
           </form>
           <section className="saved-search-manager" aria-label="Saved job searches">
             <div className="saved-search-save-row">
