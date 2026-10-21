@@ -1,5 +1,6 @@
 import { readApplicationTracker, type TrackedApplication } from "./application-tracker";
 import { readShortlist } from "./shortlist";
+import { JOB_AGENT_LOCAL_STORAGE_KEYS } from "./local-data";
 import type { ExperienceLevel, Job } from "./scoring";
 
 export interface JobAgentProfileBackup {
@@ -97,4 +98,44 @@ export function parseJobAgentBackup(value: unknown): JobAgentBackup | null {
     savedJobs,
     applications
   };
+}
+
+
+export interface JobAgentBackupStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
+/**
+ * Restore the validated backup to app-owned keys. If any write fails, best-effort
+ * rollback restores all prior app keys so quota errors don't leave mixed generations.
+ */
+export function restoreJobAgentBackupToStorage(storage: JobAgentBackupStorage, backup: JobAgentBackup): void {
+  const snapshot = new Map<string, string | null>();
+  for (const key of JOB_AGENT_LOCAL_STORAGE_KEYS) {
+    snapshot.set(key, storage.getItem(key));
+  }
+
+  try {
+    storage.setItem("job-agent.profile.v3", JSON.stringify(backup.profile));
+    storage.setItem("job-agent.shortlist.v1", JSON.stringify(backup.savedJobs));
+    storage.setItem("job-agent.applications.v1", JSON.stringify(backup.applications));
+    storage.removeItem("job-agent.profile.v2");
+    storage.removeItem("job-agent.profile.v1");
+  } catch (error) {
+    let rollbackFailed = false;
+    for (const [key, value] of snapshot) {
+      try {
+        if (value === null) storage.removeItem(key);
+        else storage.setItem(key, value);
+      } catch {
+        rollbackFailed = true;
+      }
+    }
+    if (rollbackFailed) {
+      throw new Error("Backup restore failed and the browser could not fully roll back its prior local data.");
+    }
+    throw error;
+  }
 }

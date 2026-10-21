@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createJobAgentBackup, parseJobAgentBackup, type JobAgentProfileBackup } from "./backup";
+import { createJobAgentBackup, parseJobAgentBackup, restoreJobAgentBackupToStorage, type JobAgentBackupStorage, type JobAgentProfileBackup } from "./backup";
 import type { TrackedApplication } from "./application-tracker";
 import type { Job } from "./scoring";
 
@@ -62,6 +62,52 @@ describe("Job Agent JSON backup", () => {
     expect(parseJobAgentBackup({ ...backup, savedJobs: [job, job] })).toBeNull();
     const many = Array.from({ length: 101 }, (_, index) => ({ ...job, id: "job-" + index }));
     expect(parseJobAgentBackup({ ...backup, savedJobs: many })).toBeNull();
+  });
+
+  it("restores previous app data if any storage write fails", () => {
+    const before = new Map<string, string>([
+      ["job-agent.profile.v3", '{"old":"profile"}'],
+      ["job-agent.profile.v2", '{"legacy":"profile"}'],
+      ["job-agent.shortlist.v1", '[{"old":"shortlist"}]'],
+      ["job-agent.applications.v1", '[{"old":"applications"}]']
+    ]);
+    const snapshotBefore = new Map(before);
+    let writes = 0;
+    let failOnWrite = true;
+    const storage: JobAgentBackupStorage = {
+      getItem(key) { return before.get(key) ?? null; },
+      setItem(key, value) {
+        writes += 1;
+        if (failOnWrite && writes === 2) {
+          failOnWrite = false;
+          throw new Error("Quota exceeded");
+        }
+        before.set(key, value);
+      },
+      removeItem(key) { before.delete(key); }
+    };
+    const backup = createJobAgentBackup(profile, [job], [application]);
+    expect(() => restoreJobAgentBackupToStorage(storage, backup)).toThrow("Quota exceeded");
+    expect(before).toEqual(snapshotBefore);
+  });
+
+  it("writes the new profile and records and removes legacy profile keys", () => {
+    const data = new Map<string, string>([
+      ["job-agent.profile.v2", '{"schemaVersion":2}'],
+      ["job-agent.profile.v1", '{"schemaVersion":1}']
+    ]);
+    const storage: JobAgentBackupStorage = {
+      getItem(key) { return data.get(key) ?? null; },
+      setItem(key, value) { data.set(key, value); },
+      removeItem(key) { data.delete(key); }
+    };
+    const backup = createJobAgentBackup(profile, [job], [application]);
+    restoreJobAgentBackupToStorage(storage, backup);
+    expect(JSON.parse(data.get("job-agent.profile.v3") ?? "null")).toEqual(profile);
+    expect(JSON.parse(data.get("job-agent.shortlist.v1") ?? "null")).toHaveLength(1);
+    expect(JSON.parse(data.get("job-agent.applications.v1") ?? "null")).toHaveLength(1);
+    expect(data.has("job-agent.profile.v2")).toBe(false);
+    expect(data.has("job-agent.profile.v1")).toBe(false);
   });
 
   it("rejects unsupported schema versions and malformed export dates", () => {

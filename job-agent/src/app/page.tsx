@@ -11,7 +11,7 @@ import { extractResumeText } from "@/lib/cv-parser";
 import { extractKnownSkills } from "@/lib/remotive";
 import { filterAndSortMatches, type JobAgeFilter, type JobSortMode } from "@/lib/job-results";
 import { clearJobAgentLocalData } from "@/lib/local-data";
-import { createJobAgentBackup, parseJobAgentBackup } from "@/lib/backup";
+import { createJobAgentBackup, parseJobAgentBackup, restoreJobAgentBackupToStorage } from "@/lib/backup";
 
 const sampleJobs: Job[] = [
   { id: "demo-1", title: "Junior Python Developer", company: "Northstar Systems", location: "Remote — Worldwide", remote: true, skills: ["Python", "SQL", "Git"], level: "entry", description: "Support backend services, write Python code, and work with relational databases.", url: "https://example.com/jobs/demo-1" },
@@ -84,7 +84,7 @@ export default function HomePage() {
       };
       const backup = createJobAgentBackup(profile, savedJobs, trackedApplications);
       const json = JSON.stringify(backup, null, 2);
-      const blob = new Blob(["\\uFEFF", json], { type: "application/json;charset=utf-8" });
+      const blob = new Blob([json], { type: "application/json;charset=utf-8" });
       const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = objectUrl;
@@ -122,9 +122,7 @@ export default function HomePage() {
       }
 
       const storage = window.localStorage;
-      storage.setItem("job-agent.profile.v3", JSON.stringify(backup.profile));
-      storage.setItem("job-agent.shortlist.v1", JSON.stringify(backup.savedJobs));
-      storage.setItem("job-agent.applications.v1", JSON.stringify(backup.applications));
+      restoreJobAgentBackupToStorage(storage, backup);
 
       setCandidateName(backup.profile.candidateName);
       setDraftLanguage(backup.profile.draftLanguage);
