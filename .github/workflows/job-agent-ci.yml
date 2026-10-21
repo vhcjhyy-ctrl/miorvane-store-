@@ -9,6 +9,7 @@ on:
       - ".github/workflows/job-agent-ci.yml"
       - ".github/workflows/job-agent-release.yml"
       - ".github/workflows/job-agent-catalog-sync.yml"
+      - "render.yaml"
   pull_request:
     paths:
       - "job-agent/**"
@@ -44,6 +45,10 @@ jobs:
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund --no-progress
+
+      - name: Validate Render Blueprint
+        run: |
+          ruby -r yaml -e 'config = YAML.safe_load_file("../render.yaml"); services = config["services"]; abort("Render blueprint must define the Job Agent web service and health endpoint") unless services.is_a?(Array) && services.any? { |service| service["name"] == "job-agent" && service["runtime"] == "docker" && service["healthCheckPath"] == "/api/health" }; puts "Render Blueprint structure is valid."'
 
       - name: Run ESLint
         run: npm run lint

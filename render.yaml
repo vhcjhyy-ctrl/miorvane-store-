@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: job-agent
+    runtime: docker
+    dockerfilePath: ./job-agent/Dockerfile
+    dockerContext: ./job-agent
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        value: ""
+      - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        value: ""
+      - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
+        value: ""
+      - key: AI_COVER_LETTER_ENABLED
+        value: "false"
