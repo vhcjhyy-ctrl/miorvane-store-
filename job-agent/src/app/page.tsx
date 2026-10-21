@@ -5,6 +5,7 @@ import { explainJobMatch, type CandidateProfile, type Job } from "@/lib/scoring"
 import { buildCoverLetterDraft } from "@/lib/application-draft";
 import { readShortlist, toggleShortlist } from "@/lib/shortlist";
 import { readApplicationTracker, updateApplicationTracker, updateTrackedApplicationDetails, type ApplicationStatus, type TrackedApplication } from "@/lib/application-tracker";
+import { filterApplicationsByStatus, summarizeApplications, type ApplicationStatusFilter } from "@/lib/application-dashboard";
 import { applicationTrackerToCsv } from "@/lib/application-export";
 import { extractResumeText } from "@/lib/cv-parser";
 import { extractKnownSkills } from "@/lib/remotive";
@@ -43,6 +44,7 @@ export default function HomePage() {
   const [showSavedJobs, setShowSavedJobs] = useState(false);
   const [trackedApplications, setTrackedApplications] = useState<TrackedApplication[]>([]);
   const [showApplications, setShowApplications] = useState(false);
+  const [applicationStatusFilter, setApplicationStatusFilter] = useState<ApplicationStatusFilter>("all");
   const [draftForJob, setDraftForJob] = useState<Job | null>(null);
   const [draftText, setDraftText] = useState("");
   const [aiConsent, setAiConsent] = useState(false);
@@ -112,14 +114,22 @@ export default function HomePage() {
     remoteOnly
   }), [skillsText, rolesText, level, remoteOnly]);
 
-  const activeJobs = showApplications ? trackedApplications.map(item => item.job) : showSavedJobs ? savedJobs : showLiveJobs ? liveJobs : sampleJobs;
+  const applicationSummary = useMemo(
+    () => summarizeApplications(trackedApplications, localDateStamp()),
+    [trackedApplications]
+  );
+  const trackedApplicationsForView = useMemo(
+    () => filterApplicationsByStatus(trackedApplications, applicationStatusFilter),
+    [trackedApplications, applicationStatusFilter]
+  );
+  const activeJobs = showApplications ? trackedApplicationsForView.map(item => item.job) : showSavedJobs ? savedJobs : showLiveJobs ? liveJobs : sampleJobs;
   const availableCategories = useMemo(() => Array.from(new Set(activeJobs.map(job => job.category?.trim()).filter((value): value is string => Boolean(value)))).sort((a, b) => a.localeCompare(b)), [activeJobs]);
   const availableJobTypes = useMemo(() => Array.from(new Set(activeJobs.map(job => job.jobType?.trim()).filter((value): value is string => Boolean(value)))).sort((a, b) => a.localeCompare(b)), [activeJobs]);
   const scoredMatches = useMemo(() => activeJobs
-    .filter(job => !candidate.remoteOnly || job.remote)
+    .filter(job => showApplications || !candidate.remoteOnly || job.remote)
     .map(job => ({ job, explanation: explainJobMatch(candidate, job) }))
-    .filter(item => item.explanation.score >= minimumScore),
-  [activeJobs, candidate, minimumScore]);
+    .filter(item => showApplications || item.explanation.score >= minimumScore),
+  [activeJobs, candidate, minimumScore, showApplications]);
   const matches = useMemo(() => filterAndSortMatches(scoredMatches, {
     category: jobCategoryFilter,
     jobType: jobTypeFilter,
@@ -285,6 +295,8 @@ export default function HomePage() {
   function loadTrackedApplications() {
     try {
       const applications = readApplicationTracker(window.localStorage.getItem("job-agent.applications.v1"));
+      setApplicationStatusFilter("all");
+      resetJobFilters();
       setTrackedApplications(applications);
       setShowApplications(true);
       setShowSavedJobs(false);
@@ -507,6 +519,31 @@ export default function HomePage() {
             {showApplications && <button className="secondary-button export-csv-button" type="button" onClick={exportTrackedApplicationsCsv} disabled={trackedApplications.length === 0}>Export CSV</button>}
             <button className="secondary-button" type="button" onClick={showDemoJobs}>Show demo data</button>
           </div>
+          {showApplications && <section className="application-dashboard" aria-label="Application tracker dashboard">
+            <div className="application-dashboard-heading">
+              <div><strong>Application overview</strong><small>Follow-up counts exclude rejected and withdrawn roles.</small></div>
+              <label htmlFor="application-status-filter">Filter by status
+                <select id="application-status-filter" value={applicationStatusFilter} onChange={event => setApplicationStatusFilter(event.target.value as ApplicationStatusFilter)}>
+                  <option value="all">All statuses</option>
+                  <option value="interested">Interested</option>
+                  <option value="preparing">Preparing</option>
+                  <option value="applied">Applied</option>
+                  <option value="interview">Interview</option>
+                  <option value="offer">Offer</option>
+                  <option value="rejected">Rejected</option>
+                  <option value="withdrawn">Withdrawn</option>
+                </select>
+              </label>
+            </div>
+            <div className="application-metrics">
+              <div className="application-metric"><span>Tracked</span><strong>{applicationSummary.total}</strong></div>
+              <div className="application-metric"><span>Applied</span><strong>{applicationSummary.applied}</strong></div>
+              <div className="application-metric"><span>Interviews</span><strong>{applicationSummary.interviews}</strong></div>
+              <div className="application-metric"><span>Offers</span><strong>{applicationSummary.offers}</strong></div>
+              <div className={"application-metric metric-due" + (applicationSummary.followUpsDue > 0 ? " has-due" : "")}><span>Follow-ups due</span><strong>{applicationSummary.followUpsDue}</strong></div>
+              <div className={"application-metric metric-overdue" + (applicationSummary.followUpsOverdue > 0 ? " has-overdue" : "")}><span>Overdue</span><strong>{applicationSummary.followUpsOverdue}</strong></div>
+            </div>
+          </section>}
           {liveError && <p className="inline-error" role="alert">{liveError}</p>}
           {showLiveJobs && liveFetchedAt && <p className="retrieved-note">Fetched by this session: {new Date(liveFetchedAt).toLocaleString()} · source data may be cached.</p>}
         </div>
