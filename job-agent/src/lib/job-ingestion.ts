@@ -11,6 +11,9 @@ export interface CatalogJobRow {
   is_remote: boolean;
   description: string;
   skills: string[];
+  salary_text: string | null;
+  category: string | null;
+  job_type: string | null;
   experience_level: "entry" | "mid" | "senior" | null;
   published_at: string | null;
   last_seen_at: string;
@@ -60,6 +63,9 @@ export function toCatalogJobRow(job: Job, sourceId: string, nowIso: string): Cat
     is_remote: job.remote,
     description: job.description.slice(0, 420),
     skills: [...new Set(job.skills.map(skill => skill.trim()).filter(Boolean))].slice(0, 50),
+    salary_text: job.salary?.slice(0, 100) ?? null,
+    category: job.category?.slice(0, 100) ?? null,
+    job_type: job.jobType?.slice(0, 80) ?? null,
     experience_level: job.level ?? null,
     published_at: job.publishedAt && Number.isFinite(Date.parse(job.publishedAt))
       ? new Date(job.publishedAt).toISOString()
