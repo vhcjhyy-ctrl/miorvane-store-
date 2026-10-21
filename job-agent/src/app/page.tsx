@@ -431,7 +431,7 @@ export default function HomePage() {
   return <main className="shell">
     <header className="topbar">
       <a className="brand" href="#"><span className="brand-mark">J</span> Job Agent</a>
-      <span className="phase-pill">PHASE 9 · FOLLOW-UP TRACKER</span>
+      <span className="phase-pill">PHASE 10 · APPLICATION DASHBOARD</span>
     </header>
     <section className="hero">
       <div>

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { filterApplicationsByStatus, summarizeApplications } from "./application-dashboard";
 import type { TrackedApplication } from "./application-tracker";
-import type { Job } from "./scoring";
 
 const makeApplication = (
   id: string,
