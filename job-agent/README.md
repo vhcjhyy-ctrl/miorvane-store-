@@ -28,7 +28,7 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Streaming request-body size limit and UTF-8 validation for the optional AI endpoint, with targeted tests
 - Vitest suites for scoring, result filters/sorting, multi-source merge/deduplication, live job API route integration, bounded request-body parsing, backup validation/round-trip, application dashboard summaries/status filtering, app-local data cleanup, saved-search validation/upsert/removal, Remotive and Arbeitnow normalization, browser-local shortlist, application tracking, CSV export, English/Arabic cover-letter drafts, and local CV extraction and CV-to-job keyword comparison
 - GitHub Actions runs ESLint, unit tests, a production build, Docker image build, Compose configuration validation, and a real container health smoke test; provider-route integration tests cover partial outages, malformed feeds, source selection, and result limits
-- Multi-stage Docker image, loopback-only Docker Compose port by default, and a secret-free health endpoint
+- Multi-stage Docker image, loopback-only Docker Compose port by default, secret-free health endpoint, and baseline security response headers (no-sniff, frame denial, referrer policy, and restrictive browser permissions)
 - Supabase migrations enable RLS on private workspace rows and restrict public catalog reads to active, unexpired jobs plus enabled-source metadata; private source configuration is not granted to anon users
 - Initial Supabase SQL schema and RLS policies
 

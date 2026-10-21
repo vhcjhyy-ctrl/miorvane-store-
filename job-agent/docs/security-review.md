@@ -14,6 +14,7 @@ This document records implemented controls and the remaining launch blockers. It
 - Cloud sync uses a versioned per-user workspace row protected by RLS. The route derives `user_id` from the verified cookie session, validates all workspace records before writing, applies optimistic concurrency checks, and supports separate cloud-only deletion. The email callback accepts only safe relative redirect paths. If Supabase environment variables are missing, the AI endpoint fails closed.
 - The optional AI route forwards only a validated allowlist of candidate-entered fields and selected job details, supports Arabic or English output, with the selected language included in the explicitly consented request, uses `store: false`, and has a streaming request-body byte ceiling before buffering the full payload.
 - CSV export quotes cells and neutralizes spreadsheet formula prefixes.
+- Production responses set `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, `X-DNS-Prefetch-Control: off`, and a restrictive `Permissions-Policy`. HTTPS/HSTS enforcement remains the responsibility of the production hosting edge.
 - ESLint, Vitest, production Next.js build, Docker image build, Compose validation, and a production-container health smoke test run in GitHub Actions.
 
 ## Required before public launch
