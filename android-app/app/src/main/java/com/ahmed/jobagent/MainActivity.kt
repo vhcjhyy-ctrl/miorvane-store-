@@ -129,6 +129,7 @@ class MainActivity : Activity() {
             }
             addView(retry)
         }
+        errorView.visibility = View.GONE
 
         root.addView(webView, FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
