@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Job Agent</string>
+    <string name="loading_message">جارٍ فتح منصة التوظيف…</string>
+    <string name="connection_error_title">تعذّر الاتصال بمنصة التوظيف</string>
+    <string name="connection_error_message">تأكد من اتصال الإنترنت وأن خدمة التطبيق منشورة، ثم حاول مرة أخرى.</string>
+    <string name="retry">إعادة المحاولة</string>
+</resources>
