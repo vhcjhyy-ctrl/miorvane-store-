@@ -1,0 +1,64 @@
+name: Build Job Agent Android APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      app_base_url:
+        description: "Public HTTPS URL of the deployed Job Agent service"
+        required: false
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - "android-app/**"
+      - ".github/workflows/job-agent-android-apk.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: job-agent-android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-apk:
+    name: Build Android debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      APP_BASE_URL: ${{ inputs.app_base_url || vars.ANDROID_APP_BASE_URL || 'https://job-agent.onrender.com' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Validate application URL
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$APP_BASE_URL" != https://* ]]; then
+            echo "::error::APP_BASE_URL must be a deployed HTTPS URL."
+            exit 1
+          fi
+          echo "Building APK for configured HTTPS origin."
+
+      - name: Build debug APK
+        run: gradle --no-daemon -p android-app :app:assembleDebug "-PAPP_BASE_URL=$APP_BASE_URL"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: job-agent-android-debug-apk
+          path: android-app/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
