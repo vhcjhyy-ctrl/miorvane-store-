@@ -34,6 +34,10 @@ A starter workspace for a personal AI job application agent. This folder is inte
 - Supabase migrations enable RLS on private workspace rows and restrict public catalog reads to active, unexpired jobs plus enabled-source metadata; private source configuration is not granted to anon users
 - Initial Supabase SQL schema and RLS policies
 
+## Free public hosting
+
+A Render Blueprint is defined in the repository root and explicitly selects the Free web-service plan. Deployment still requires the repository owner to authorize Render and select Deploy Blueprint in the Render dashboard. Follow [the free-hosting runbook](docs/free-hosting.md). Render's free service sleeps after inactivity, so this is a public preview rather than a production SLA.
+
 ## Integration status and limitations
 
 The Supabase cloud workspace integration is now implemented in code, but it is **not connected to a live project from this repository yet**. To activate it, create a Supabase project, configure the public project URL and publishable key, add the deployed `/auth/callback` URL to Supabase Auth's allowed redirects, and apply migrations in order: `supabase/migrations/0001_initial_schema.sql`, `0002_cloud_workspace.sql`, and `0003_public_job_catalog.sql`. The new migration creates one private, versioned workspace row per authenticated user and enables row-level security. Use the new **Sync local workspace**, **Load from cloud**, and **Delete cloud copy** controls to move data explicitly. The API validates the whole workspace, checks optimistic versions to prevent silent overwrite from another device, caps request size, and derives the user ID from the verified session. Local clearing and cloud deletion are intentionally separate actions.
