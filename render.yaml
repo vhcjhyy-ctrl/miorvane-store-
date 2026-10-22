@@ -2,6 +2,7 @@ services:
   - type: web
     name: job-agent
     runtime: docker
+    plan: free
     dockerfilePath: ./job-agent/Dockerfile
     dockerContext: ./job-agent
     healthCheckPath: /api/health
